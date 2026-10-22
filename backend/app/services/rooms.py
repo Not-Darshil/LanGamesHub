@@ -29,7 +29,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.games.base import Action, GameEngine, Outcome
+from app.games.base import Action, GameEngine, Options, Outcome
+from app.games.registry import GAMES
 from app.games.registry import get_engine
 from app.models import (
     ACTIVE_STATUSES,
@@ -125,7 +126,8 @@ def _seat_member(db: Session, room: Room, session_id: int) -> RoomMember:
 
 
 def create_room(db: Session, *, game_type: str, name: str, max_players: int | None,
-                creator: PlayerSession | None, admin_label: str | None = None) -> Room:
+                creator: PlayerSession | None, admin_label: str | None = None,
+                options: Options | None = None) -> Room:
     """Create a room. Admin-created rooms are approved immediately; a player's proposal
     starts in CREATED with the proposer seated, until the host approves it."""
     engine = get_engine(game_type)
@@ -136,6 +138,7 @@ def create_room(db: Session, *, game_type: str, name: str, max_players: int | No
     if not info.min_players <= limit <= info.max_players:
         raise ServiceError(
             f"{info.name} supports {info.min_players}–{info.max_players} players")
+    options = engine.validate_options(options)  # GameError is a 400 ServiceError
     now = utcnow()
     by_admin = creator is None
     if creator is not None:
@@ -150,6 +153,7 @@ def create_room(db: Session, *, game_type: str, name: str, max_players: int | No
         game_type=game_type,
         status=RoomStatus.WAITING_FOR_PLAYERS if by_admin else RoomStatus.CREATED,
         max_players=limit,
+        options=options,
         is_locked=False,
         created_by_admin=by_admin,
         creator_session_id=None if creator is None else creator.id,
@@ -212,7 +216,8 @@ def start_room(db: Session, room_id: int, online: set[int], rng: random.Random) 
          "nickname": _nickname(db, m.session_id), "seat": m.seat}
         for m in members
     ]
-    room.game_state = engine.new_game([player_key(m.session_id) for m in members], rng)
+    room.game_state = engine.start([player_key(m.session_id) for m in members], rng,
+                                   room.options or {})
     room.state_version += 1
     room.status = RoomStatus.IN_PROGRESS
     room.is_locked = True
@@ -338,6 +343,40 @@ def apply_action(db: Session, session_id: int, room_id: int, action: Action,
     if outcome is not None:
         _complete(db, room, outcome)
     return room
+
+
+def expire_clocks(db: Session) -> bool:
+    """End timed games whose clock has run out with nobody acting. Returns True if any did.
+
+    Runs periodically; a move that arrives after the flag fell is also caught by the
+    engine itself, so this only bounds how long a finished game can look unfinished.
+    """
+    timed = [game_type for game_type, engine in GAMES.items() if engine.timed]
+    if not timed:
+        return False
+    candidates = db.execute(
+        select(Room.id, Room.game_type, Room.game_state)
+        .where(Room.status == RoomStatus.IN_PROGRESS, Room.game_type.in_(timed))
+    ).all()
+    changed = False
+    for room_id, game_type, state in candidates:
+        engine = GAMES[game_type]
+        due = engine.deadline(state) if state else None
+        if due is None or engine.now() < due:
+            continue
+        room = _lock_room(db, room_id)
+        if room.status != RoomStatus.IN_PROGRESS or room.game_state is None:
+            continue
+        new_state = engine.expire(room.game_state)
+        if new_state is room.game_state:
+            continue
+        room.game_state = new_state
+        room.state_version += 1
+        outcome = engine.outcome(new_state)
+        if outcome is not None:
+            _complete(db, room, outcome)
+        changed = True
+    return changed
 
 
 # -- reactions to session events -------------------------------------------------------

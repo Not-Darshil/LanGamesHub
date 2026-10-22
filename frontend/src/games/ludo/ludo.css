@@ -1,34 +1,168 @@
+/* ---------- Ludo: palette ---------- */
+.ludo .lu-c-red { --c: #ef4444; --c-2: #b91c1c; --c-hi: #fca5a5; --c-soft: #fee2e2; }
+.ludo .lu-c-green { --c: #22c55e; --c-2: #15803d; --c-hi: #86efac; --c-soft: #dcfce7; }
+.ludo .lu-c-yellow { --c: #eab308; --c-2: #a16207; --c-hi: #fde68a; --c-soft: #fef9c3; }
+.ludo .lu-c-blue { --c: #3b82f6; --c-2: #1d4ed8; --c-hi: #93c5fd; --c-soft: #dbeafe; }
+
+/* ---------- Board ---------- */
+.lu-stage { min-width: 0; }
+.lu-frame {
+  max-width: 680px; margin: 0 auto; padding: clamp(6px, 1.8%, 14px); border-radius: clamp(16px, 3.5%, 26px);
+  background: linear-gradient(145deg, #2b3150, #151a2c 60%, #1d2340);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 10%) inset, 0 0 0 1px rgb(255 255 255 / 6%), var(--shadow-lg);
+  transition: box-shadow 0.5s var(--ease);
+}
+.lu-my-turn .lu-frame {
+  box-shadow: 0 1px 0 rgb(255 255 255 / 10%) inset, 0 0 0 1px rgb(124 92 255 / 45%), 0 0 60px -18px rgb(124 92 255 / 70%), var(--shadow-lg);
+}
 .lu-board {
-  display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
-  aspect-ratio: 1; flex: 1 1 480px; max-width: 600px; border: 2px solid #374151; border-radius: 6px;
-  overflow: hidden; background: #fff;
+  position: relative; display: grid; grid-template: repeat(15, minmax(0, 1fr)) / repeat(15, minmax(0, 1fr));
+  aspect-ratio: 1; width: 100%; container-type: inline-size; border-radius: clamp(10px, 2.4%, 18px);
+  background: radial-gradient(circle at 50% 45%, #fffdf8, #f3eee3 70%, #ebe4d4);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 10%), inset 0 2px 12px rgb(0 0 0 / 12%);
+  user-select: none; -webkit-tap-highlight-color: transparent;
 }
-.lu-cell { position: relative; border: 0.5px solid #d1d5db; display: grid; place-items: center; min-width: 0; }
-.lu-yard { border: none; }
-.lu-blank { border: none; }
-.lu-center { background: #f3f4f6; border: none; }
-.lu-track { background: #fff; }
-.lu-red { background: #ef4444; }
-.lu-green { background: #22c55e; }
-.lu-yellow { background: #eab308; }
-.lu-blue { background: #3b82f6; }
-.lu-red-soft { background: #fecaca; }
-.lu-green-soft { background: #bbf7d0; }
-.lu-yellow-soft { background: #fef08a; }
-.lu-blue-soft { background: #bfdbfe; }
-.lu-star { position: absolute; color: #9ca3af; font-size: 14px; }
-.lu-stack { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; z-index: 1; }
-.lu-token {
-  width: 22px; height: 22px; border-radius: 50%; padding: 0; font-size: 11px; font-weight: 700;
-  border: 2px solid #fff; color: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 45%); line-height: 1;
+
+/* Yards: coloured rounded square, a cream inner panel and four token slots. The yard box itself spans
+   exactly 6×6 cells (slot percentages line up with token positions); the visuals are pseudo-elements. */
+.lu-yard { position: relative; z-index: 0; transition: filter 0.5s var(--ease), opacity 0.5s var(--ease); }
+.lu-yard::before, .lu-yard::after { content: ""; position: absolute; transition: box-shadow 0.5s var(--ease); }
+.lu-yard::before {
+  inset: 3.5%; border-radius: 14%; background: linear-gradient(145deg, var(--c), var(--c-2));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 35%), inset 0 -3px 10px rgb(0 0 0 / 18%), 0 4px 14px -6px rgb(0 0 0 / 45%);
 }
-.lu-token:disabled { opacity: 1; cursor: default; }
-.lu-movable { outline: 3px solid #111827; animation: lu-pulse 1s ease-in-out infinite; cursor: pointer; }
-@keyframes lu-pulse { 50% { box-shadow: 0 0 0 4px rgb(17 24 39 / 35%); } }
-.lu-side { flex: 1 1 260px; }
-.lu-legend { padding: 0; }
-.lu-legend li { list-style: none; margin: 4px 0; }
-.lu-turn { font-weight: 700; }
-.lu-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-.lu-roll { display: flex; align-items: center; gap: 8px; }
-.lu-die { font-size: 34px; line-height: 1; }
+.lu-yard::after {
+  inset: 15%; border-radius: 18%; background: radial-gradient(circle at 40% 30%, #fffefa, #f4efe4);
+  box-shadow: inset 0 2px 6px rgb(0 0 0 / 16%), 0 1px 0 rgb(255 255 255 / 40%);
+}
+.lu-slot {
+  position: absolute; z-index: 1; width: 21%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%;
+  background: radial-gradient(circle at 50% 60%, var(--c-soft), color-mix(in srgb, var(--c-soft) 70%, var(--c)));
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 22%), 0 0 0 2px color-mix(in srgb, var(--c) 45%, transparent);
+}
+.lu-yard.is-active { z-index: 1; }
+.lu-yard.is-active::before {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 35%), 0 0 0 3px #fff, 0 0 0 6px var(--c), 0 0 34px 4px var(--c);
+  animation: lu-yard-glow 2.2s ease-in-out infinite;
+}
+.lu-yard.is-idle { filter: saturate(0.7) brightness(0.92); }
+.lu-yard.is-empty { filter: saturate(0.3) brightness(1.05); opacity: 0.55; }
+@keyframes lu-yard-glow { 50% { box-shadow: inset 0 1px 0 rgb(255 255 255 / 35%), 0 0 0 3px #fff, 0 0 0 6px var(--c), 0 0 48px 10px var(--c); } }
+
+/* Track squares, home lanes and start squares. */
+.lu-cell {
+  position: relative; display: grid; place-items: center; min-width: 0; background: #fff;
+  box-shadow: inset 0 0 0 0.5px rgb(40 36 60 / 18%);
+}
+.lu-lane, .lu-start {
+  background: linear-gradient(145deg, var(--c), var(--c-2));
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 18%), inset 0 1px 0 rgb(255 255 255 / 30%);
+}
+.lu-star { width: 64%; height: 64%; fill: #c9c1ad; filter: drop-shadow(0 1px 0 #fff); }
+.lu-arrow { width: 70%; height: 70%; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 1px rgb(0 0 0 / 30%)); }
+
+/* Centre: four triangles meeting at a hub. */
+.lu-center { width: 100%; height: 100%; display: block; filter: drop-shadow(0 2px 4px rgb(0 0 0 / 18%)); }
+.lu-center polygon { stroke: rgb(255 255 255 / 70%); stroke-width: 0.03; stroke-linejoin: round; }
+.lu-fill-red { fill: #ef4444; }
+.lu-fill-green { fill: #22c55e; }
+.lu-fill-yellow { fill: #eab308; }
+.lu-fill-blue { fill: #3b82f6; }
+.lu-hub { fill: #fffdf8; stroke: rgb(0 0 0 / 10%); stroke-width: 0.03; }
+
+/* ---------- Token layer ---------- */
+.lu-layer { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.lu-layer > * {
+  --k: 1; position: absolute;
+  left: calc((var(--x) - 0.39 * var(--k)) * 100% / 15); top: calc((var(--y) - 0.39 * var(--k)) * 100% / 15);
+  width: calc(0.78 * var(--k) * 100% / 15); height: calc(0.78 * var(--k) * 100% / 15); border-radius: 50%;
+}
+.ludo .lu-layer button.lu-token,
+.ludo .lu-layer button.lu-token:hover:not(:disabled),
+.ludo .lu-layer button.lu-token:active:not(:disabled),
+.ludo .lu-layer button.lu-token:disabled {
+  display: block; padding: 0; min-height: 0; border: 0; background: none; box-shadow: none; filter: none;
+  transform: none; opacity: 1; color: #fff; cursor: default; z-index: 3;
+  transition: left var(--dur, 0.2s) var(--ease), top var(--dur, 0.2s) var(--ease), width 0.3s var(--ease), height 0.3s var(--ease);
+}
+.ludo .lu-layer button.lu-token:disabled { pointer-events: none; }
+.ludo .lu-layer button.lu-token.lu-done { z-index: 2; }
+.ludo .lu-layer button.lu-token.lu-movable { pointer-events: auto; cursor: pointer; z-index: 6; }
+.ludo .lu-layer button.lu-token.lu-moving { z-index: 8; }
+.ludo .lu-layer button.lu-token:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+.lu-hop { display: block; width: 100%; height: 100%; animation: lu-hop 0.2s var(--ease); }
+.lu-pawn {
+  position: relative; display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%;
+  font-size: calc(var(--k) * 3.4cqw); font-weight: 900; line-height: 1; text-shadow: 0 1px 1px rgb(0 0 0 / 40%);
+  background: radial-gradient(circle at 34% 28%, #fff 0 7%, var(--c-hi) 20%, var(--c) 52%, var(--c-2) 100%);
+  box-shadow: 0 0 0 2px #fff, inset 0 -3px 5px rgb(0 0 0 / 28%), 0 4px 7px -1px rgb(0 0 0 / 50%);
+  transition: transform 0.25s var(--spring), box-shadow 0.25s var(--ease);
+}
+.lu-pawn::after {
+  content: ""; position: absolute; inset: 24%; border-radius: 50%;
+  border: 1.5px solid rgb(255 255 255 / 55%); box-shadow: inset 0 1px 2px rgb(0 0 0 / 20%);
+}
+.lu-done .lu-pawn::after { display: none; }
+
+/* Movable: glowing ring + gentle bob; hover lifts the pawn. */
+.lu-movable::before {
+  content: ""; position: absolute; inset: -22%; border-radius: 50%; pointer-events: none;
+  border: 2px solid var(--c); box-shadow: 0 0 14px 2px var(--c), inset 0 0 8px var(--c);
+  animation: lu-ring 1.1s ease-in-out infinite;
+}
+.lu-movable .lu-pawn { animation: lu-bob 0.9s ease-in-out infinite; }
+.lu-movable:hover .lu-pawn, .lu-movable:focus-visible .lu-pawn {
+  animation: none; transform: translateY(-14%) scale(1.15);
+  box-shadow: 0 0 0 2px #fff, inset 0 -3px 5px rgb(0 0 0 / 28%), 0 10px 14px -4px rgb(0 0 0 / 55%);
+}
+
+.lu-ghost {
+  background: color-mix(in srgb, var(--c) 28%, transparent); border: 2px dashed var(--c-2);
+  box-shadow: 0 0 16px var(--c); animation: lu-ghost 1s ease-in-out infinite; z-index: 1;
+}
+.lu-burst { border: 3px solid #f43f5e; box-shadow: 0 0 18px #f43f5e; animation: lu-burst 0.7s var(--ease) forwards; z-index: 9; }
+
+@keyframes lu-hop {
+  0% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-34%) scale(1.12); }
+  80% { transform: translateY(0) scale(1.1, 0.88); }
+  100% { transform: none; }
+}
+@keyframes lu-bob { 50% { transform: translateY(-12%); } }
+@keyframes lu-ring { 0%, 100% { transform: scale(0.92); opacity: 0.55; } 50% { transform: scale(1.06); opacity: 1; } }
+@keyframes lu-ghost { 50% { transform: scale(0.85); opacity: 0.6; } }
+@keyframes lu-burst { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(2.6); opacity: 0; } }
+
+/* ---------- Side panel ---------- */
+.lu-swatch {
+  display: inline-block; flex: none; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px;
+  background: radial-gradient(circle at 35% 30%, var(--c-hi), var(--c) 60%, var(--c-2));
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 85%), 0 0 10px var(--c);
+}
+.game-status .lu-swatch { margin: 0 2px; }
+.lu-dice { position: relative; transition: border-color 0.4s var(--ease), box-shadow 0.4s var(--ease); }
+.lu-dice[class*="lu-c-"] { border-color: color-mix(in srgb, var(--c) 40%, transparent); }
+.lu-dice.ready { box-shadow: 0 0 26px -8px var(--c); }
+.lu-dice .dice-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lu-dice .dice-text strong { font-size: 15px; animation: fade-in 0.3s var(--ease); }
+.lu-again { color: var(--warn); font-weight: 700; animation: pop-in 0.35s var(--spring); }
+.lu-roll:not(:disabled) { animation: status-pulse 2.4s ease-in-out infinite; }
+
+.lu-player.is-turn {
+  border-color: color-mix(in srgb, var(--c) 60%, transparent);
+  background: color-mix(in srgb, var(--c) 13%, transparent); box-shadow: 0 0 24px -10px var(--c);
+}
+.lu-player .turn-chip { background: var(--c); }
+.lu-player .grow > div:first-child { display: flex; align-items: center; gap: 6px; }
+.lu-progress { position: relative; height: 6px; margin: 6px 0 4px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.lu-progress > span { position: absolute; inset: 0 auto 0 0; border-radius: inherit; transition: width 0.7s var(--ease); }
+.lu-race { background: color-mix(in srgb, var(--c) 35%, transparent); }
+.lu-home { background: linear-gradient(90deg, var(--c-2), var(--c), var(--c-hi)); box-shadow: 0 0 8px var(--c); }
+.lu-cname { text-transform: capitalize; }
+.lu-trophy { color: var(--warn); animation: bounce-in 0.6s var(--spring); }
+
+@media (max-width: 520px) {
+  .lu-pawn { box-shadow: 0 0 0 1.5px #fff, inset 0 -2px 3px rgb(0 0 0 / 28%), 0 2px 4px rgb(0 0 0 / 50%); }
+  .lu-movable::before { border-width: 1.5px; }
+}

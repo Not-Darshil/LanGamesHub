@@ -85,6 +85,8 @@ The database URL and passwords never reach the browser.
 * After a restart, browsers reconnect automatically (with back-off) using their session
   cookies and continue exactly where they were: same hands, boards and turn. Nothing is
   re-dealt or re-rolled.
+* Chess clocks use the server's wall clock, so a running clock keeps running while the
+  server is down; a player can lose on time during a long outage.
 * Lost on restart (in memory only): live connections (until they reconnect), rate-limit
   counters, and pending disconnect-grace timers. Because start requires every member to
   be connected, a ready room cannot be started until its members have reconnected.

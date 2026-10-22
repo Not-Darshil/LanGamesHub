@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, api, describeError } from "../api";
 import type { AdminState } from "../types";
+import { Centered, Topbar } from "../ui/Chrome";
+import { Icon, Logo } from "../ui/Icon";
 import { CLOSE_UNAUTHENTICATED, useSocket } from "../useSocket";
 import { Dashboard } from "./Dashboard";
 
@@ -12,7 +14,6 @@ export function AdminApp() {
   const [state, setState] = useState<AdminState | null>(null);
 
   useEffect(() => {
-    document.title = "LanGamesHub · Host";
     api<{ username: string }>("GET", "/api/admin/me").then(
       (me) => {
         setUsername(me.username);
@@ -30,6 +31,12 @@ export function AdminApp() {
     if (socket.closedWith === CLOSE_UNAUTHENTICATED) setPhase("login");
   }, [socket.closedWith]);
 
+  // Pending requests show in the tab title so the host notices them from another tab.
+  const pending = state?.pending.length ?? 0;
+  useEffect(() => {
+    document.title = pending > 0 ? `(${pending}) Access requests · LanGamesHub Host` : "LanGamesHub · Host";
+  }, [pending]);
+
   if (phase === "loading") return null;
   if (phase === "login") {
     return (
@@ -43,25 +50,20 @@ export function AdminApp() {
   }
   return (
     <div className="shell wide">
-      <header className="topbar">
-        <strong>LanGamesHub · Host dashboard</strong>
-        <span className="topbar-right">
-          <span className={`dot ${socket.connected ? "dot-on" : "dot-off"}`} />
-          {username}
-          <button
-            className="secondary small"
-            onClick={async () => {
-              await api("POST", "/api/admin/logout");
-              setPhase("login");
-              setState(null);
-            }}
-          >
-            Log out
-          </button>
-        </span>
-      </header>
+      <Topbar subtitle="Host dashboard" connected={socket.connected} name={username}>
+        <button
+          className="secondary small"
+          onClick={async () => {
+            await api("POST", "/api/admin/logout");
+            setPhase("login");
+            setState(null);
+          }}
+        >
+          <Icon name="logout" size={14} />Log out
+        </button>
+      </Topbar>
       {!socket.connected && <p className="banner">Connecting to server…</p>}
-      {state ? <Dashboard state={state} /> : <p className="muted">Loading…</p>}
+      {state ? <Dashboard state={state} /> : <div className="spinner" />}
     </div>
   );
 }
@@ -70,35 +72,46 @@ function Login({ onLoggedIn }: { onLoggedIn: (username: string) => void }) {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+    setBusy(true);
     try {
       const me = await api<{ username: string }>("POST", "/api/admin/login", { username, password });
       onLoggedIn(me.username);
     } catch (err) {
       setError(err instanceof ApiError && err.status === 401 ? "Invalid username or password" : describeError(err));
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <main className="centered">
-      <div className="card">
-        <h1>Host login</h1>
-        <form onSubmit={submit} className="stack">
-          <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+    <Centered>
+      <div className="card-logo"><Logo /></div>
+      <h1 style={{ textAlign: "center" }}>Host login</h1>
+      <p className="lead" style={{ textAlign: "center" }}>Approve guests, open rooms and start matches.</p>
+      <form onSubmit={submit} className="stack">
+        <div className="input-wrap">
+          <Icon name="user" />
+          <input className="large" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+        </div>
+        <div className="input-wrap">
+          <Icon name="key" />
           <input
+            className="large"
             type="password"
             autoFocus
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button disabled={!password}>Log in</button>
-          {error && <p className="error">{error}</p>}
-        </form>
-      </div>
-    </main>
+        </div>
+        <button className="large block" disabled={!password || busy}>Log in</button>
+        {error && <p className="error">{error}</p>}
+      </form>
+    </Centered>
   );
 }

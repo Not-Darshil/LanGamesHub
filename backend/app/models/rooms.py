@@ -51,6 +51,9 @@ class Room(Base):
         ForeignKey("player_sessions.id", ondelete="SET NULL"))
     creator_label: Mapped[str] = mapped_column(String(64))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Game-specific settings chosen at creation (e.g. a chess time control), validated
+    # by the engine. {} means the game's defaults.
+    options: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     game_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     # Seated players at start: [{"id", "session_id", "nickname", "seat"}]. Kept so the
     # game can still name players who leave mid-match.

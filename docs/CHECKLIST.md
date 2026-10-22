@@ -48,7 +48,20 @@ Each game has an engine with rule and randomized/fuzz tests, an API integration 
 - [~] Windows `.bat` scripts (install, migrate, start, diagnose, backup, restore, passwords): written and reviewed, **not yet run on Windows**. Their Python commands are the ones exercised in the rehearsal.
 - [ ] Run the bundle on the real isolated Windows host (see docs/INSTALL-WINDOWS.md)
 
-## Test results (latest run, 2026-10-22)
+## Phase 7: Premium UI and chess clocks
+- [x] Dark design system (tokens, motion, reduced-motion support), system fonts only, no new dependencies
+- [x] Shared UI: toasts, styled confirm dialogs, avatars, 3D dice, confetti, synthesized sounds with mute, turn alerts
+- [x] Redesigned access flow, lobby (room cards, game tiles, propose dialog), waiting room, host dashboard
+- [x] All five games redesigned with animations (chess: drag and drop, move animation, captured pieces, board themes)
+- [x] Room options (migration 0005) and server-side chess clocks: 1+0, 3+2, 5+0, 10+0, 15+10, 30+0 or none; timeout and timeout-vs-insufficient-material; periodic flag check
+- [ ] Re-run the offline bundle rehearsal with this version
+
+## Test results (latest run, 2026-10-23)
+- Backend: **531 passed, 4 skipped** (adds chess clock engine and API tests).
+- Browser E2E: `node e2e/run.mjs` → **48/48 checks**, all five games plus a timed chess game,
+  zero requests to external hosts.
+
+## Test results (2026-10-22)
 - Backend: `backend/.venv/bin/python -m pytest` → **518 passed, 4 skipped** (the skips are
   3–4 player contract cases for the two-player games), stable over 3 consecutive runs.
 - Browser E2E: `node e2e/run.mjs` → **42/42 checks**, all five games, zero requests to

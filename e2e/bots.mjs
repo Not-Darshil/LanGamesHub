@@ -170,4 +170,30 @@ export const GAME_BOTS = {
       return "scholar's mate in 7 plies";
     },
   },
+  chess_clock: {
+    css: "chess",
+    gameType: "chess",
+    async setup(admin) {
+      await admin.getByRole("radio", { name: "1 min Bullet" }).click();
+    },
+    async play(pages, check) {
+      const [white, black] = pages;
+      const clocks = await Promise.all(pages.map((p) => p.locator(".ch-clock").count()));
+      check("chess clock: both clocks shown to both players", clocks.every((n) => n === 2), `${clocks}`);
+      check("chess clock: clocks wait for White's first move",
+        (await white.locator(".ch-clock.running").count()) === 0);
+      const before = await version(white);
+      await white.locator('.ch-square[aria-label="e2"]').click();
+      await white.locator('.ch-square[aria-label="e4"]').click();
+      await waitForUpdate(white, before);
+      const running = black.locator(".ch-clock.running .ch-clock-time");
+      await running.waitFor();
+      const seconds = (t) => t.split(":").reduce((acc, part) => acc * 60 + Number(part), 0);
+      const t1 = seconds(await running.innerText());
+      await sleep(1600);
+      const t2 = seconds(await running.innerText());
+      check("chess clock: Black's clock counts down after White moves", t1 <= 60 && t2 < t1, `${t1} -> ${t2}`);
+      return `clock ${t1}s -> ${t2}s`;
+    },
+  },
 };

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
@@ -44,6 +45,7 @@ class CreateRoomRequest(BaseModel):
     game_type: str = Field(min_length=1, max_length=32)
     name: str = Field(min_length=1, max_length=80)
     max_players: int | None = Field(default=None, ge=1, le=16)
+    options: dict[str, Any] | None = None
 
 
 class ScreenRequest(BaseModel):
@@ -194,7 +196,8 @@ async def create_room(body: CreateRoomRequest, request: Request,
     def create(db: Session) -> dict:
         room = rooms.create_room(db, game_type=body.game_type, name=body.name,
                                  max_players=body.max_players, creator=None,
-                                 admin_label=_admin_username(db, admin_session_id))
+                                 admin_label=_admin_username(db, admin_session_id),
+                                 options=body.options)
         return {"id": room.id, "status": room.status.value}
 
     result = await ctx.run(create)

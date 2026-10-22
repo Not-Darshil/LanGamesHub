@@ -35,6 +35,8 @@ export interface RoomSummary {
   max_players: number;
   is_locked: boolean;
   creator: string;
+  options?: Record<string, unknown>;
+  options_label?: string | null;
 }
 
 export interface Member {

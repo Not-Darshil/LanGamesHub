@@ -4,7 +4,33 @@ Engine: `backend/app/games/chess_game.py` · Players: exactly 2 · Move legality
 maintained [`python-chess`](https://pypi.org/project/chess/) library (FIDE Laws of Chess).
 
 ## Setup
-Seat 0 plays White, seat 1 plays Black, from the standard starting position. No clock.
+Seat 0 plays White, seat 1 plays Black, from the standard starting position.
+
+## Time control
+Chosen when the room is created (by the host, or by the guest proposing it), as the room
+option `time_control`:
+
+| Key | Clock | Kind |
+| --- | --- | --- |
+| `1+0` | 1 minute | Bullet |
+| `3+2` | 3 minutes + 2 s per move | Blitz |
+| `5+0` | 5 minutes | Blitz |
+| `10+0` | 10 minutes | Rapid |
+| `15+10` | 15 minutes + 10 s per move | Rapid |
+| `30+0` | 30 minutes | Classical |
+| none | no clock (the default) | Casual |
+
+* Clocks are kept by the server; browsers only display them. Time is measured with the
+  server's wall clock, so it keeps running through disconnects and server restarts.
+* White's first move is untimed: Black's clock starts when White has moved, and from then
+  on the clock of the player to move runs. Making a move stops your clock and adds the
+  increment.
+* A player whose clock reaches zero loses on **timeout**, unless the opponent has
+  insufficient material to ever checkmate, in which case the game is a draw
+  ("Timeout vs insufficient material"). The server ends the game within about half a
+  second of the flag falling, even if nobody acts; a move that arrives after the flag
+  fell is not played.
+* Clocks stop when the game ends for any reason.
 
 ## Moves
 * The player to move sends `move` with a move in UCI notation, e.g. `e2e4`, `e1g1`
@@ -37,3 +63,5 @@ A player who leaves loses; the opponent wins.
 Chess has no hidden information. Both players see the position (FEN), the full move
 list in SAN, whose turn it is, check status, the last move, any pending draw offer, and
 the result. The player to move also receives the list of legal moves (for highlighting).
+With a time control, both players also see each side's remaining time and whose clock is
+running.

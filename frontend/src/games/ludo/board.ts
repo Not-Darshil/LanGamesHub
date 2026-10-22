@@ -52,3 +52,38 @@ export function tokenCell(color: Color, start: number, progress: number, index: 
   if (progress <= 55) return HOME_COLUMN[color][progress - 51]!;
   return CENTER;
 }
+
+/** A continuous board position [row, col] in cell units; a cell's centre is r + 0.5, c + 0.5. */
+export type Point = [number, number];
+
+export const COLORS: Color[] = ["red", "green", "yellow", "blue"];
+
+/** Degrees to rotate a rightward arrow on each colour's start square (direction of travel). */
+export const START_ARROW: Record<Color, number> = { red: 0, green: 90, yellow: 180, blue: 270 };
+
+/** Token slot centres inside each yard, spread out across the yard's inner panel. */
+export const SLOT_POINTS: Record<Color, Point[]> = Object.fromEntries(
+  COLORS.map((color) => {
+    const { row, col } = YARD_AREA[color];
+    return [color, [[row + 2, col + 2], [row + 2, col + 4], [row + 4, col + 2], [row + 4, col + 4]]];
+  }),
+) as Record<Color, Point[]>;
+
+/** Where finished tokens rest: a row along the base of their colour's centre triangle. */
+export function finishPoint(color: Color, index: number): Point {
+  const along = 6.9 + index * 0.4;
+  switch (color) {
+    case "red": return [along, 6.45];
+    case "green": return [6.45, along];
+    case "yellow": return [along, 8.55];
+    case "blue": return [8.55, along];
+  }
+}
+
+/** Centre point at which a token with this progress is drawn. */
+export function tokenPoint(color: Color, start: number, progress: number, index: number): Point {
+  if (progress < 0) return SLOT_POINTS[color][index] ?? SLOT_POINTS[color][0]!;
+  if (progress >= 56) return finishPoint(color, index);
+  const [r, c] = tokenCell(color, start, progress, index);
+  return [r + 0.5, c + 0.5];
+}

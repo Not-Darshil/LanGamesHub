@@ -80,6 +80,14 @@ async function newPage(browser) {
   return page;
 }
 
+/** Click the confirm button of the app's styled confirmation dialog. */
+async function confirmDialog(page) {
+  const dialog = page.getByRole("dialog");
+  await dialog.waitFor();
+  await dialog.locator(".modal-actions button").last().click();
+  await dialog.waitFor({ state: "detached" });
+}
+
 async function guestJoin(browser, admin, nickname) {
   const page = await newPage(browser);
   await page.goto(BASE);
@@ -132,9 +140,11 @@ async function coreFlow(browser, admin, players) {
   check("restored guest sees lobby again", true);
 }
 
-async function playGame(admin, players, gameType, bot) {
-  const roomName = `E2E ${gameType}`;
+async function playGame(admin, players, key, bot) {
+  const gameType = bot.gameType ?? key;
+  const roomName = `E2E ${key}`;
   await admin.locator(".create-room select").first().selectOption(gameType);
+  if (bot.setup) await bot.setup(admin);
   await admin.getByPlaceholder("Room name").fill(roomName);
   await admin.getByRole("button", { name: "Create room" }).click();
   for (const p of players) {
@@ -144,22 +154,25 @@ async function playGame(admin, players, gameType, bot) {
   }
   const adminCard = admin.locator(".room-card", { hasText: roomName });
   await adminCard.getByText("ready — waiting for host to start").waitFor();
-  check(`${gameType}: room waits for explicit host start`,
+  await players[0].screenshot({ path: join(SHOTS, `${key}-waiting.png`), fullPage: true });
+  check(`${key}: room waits for explicit host start`,
     await players[0].getByText("Everyone is ready. The host will start the game.").isVisible());
   await adminCard.getByRole("button", { name: "Start game" }).click();
+  await confirmDialog(admin);
   for (const p of players) await p.locator(`.game.${bot.css}`).waitFor();
-  check(`${gameType}: game started for all players`, true);
+  check(`${key}: game started for all players`, true);
 
   const summary = await bot.play(players, check);
   const html = await Promise.all(players.map((p) => p.content()));
-  check(`${gameType}: log uses nicknames, not ids`, html.every((h) => !h.includes("{{")));
+  check(`${key}: log uses nicknames, not ids`, html.every((h) => !h.includes("{{")));
   await Promise.all(players.map((p, i) =>
-    p.screenshot({ path: join(SHOTS, `${gameType}-${i}.png`), fullPage: true })));
-  console.log(`      ${gameType}: ${summary}`);
+    p.screenshot({ path: join(SHOTS, `${key}-${i}.png`), fullPage: true })));
+  console.log(`      ${key}: ${summary}`);
 
   // Clean up so players can join the next game.
   if (await adminCard.getByRole("button", { name: "Finish game" }).isVisible()) {
     await adminCard.getByRole("button", { name: "Finish game" }).click();
+    await confirmDialog(admin);
   }
   for (const p of players) {
     await p.getByRole("button", { name: "Back to lobby" }).click();
@@ -185,6 +198,7 @@ async function main() {
     const bob = await guestJoin(browser, admin, "Bob");
     check("guests approved and in lobby", true);
     await coreFlow(browser, admin, [alice, bob]);
+    await alice.screenshot({ path: join(SHOTS, "lobby.png"), fullPage: true });
     for (const game of games) {
       const bot = GAME_BOTS[game];
       if (!bot) throw new Error(`no bot for ${game}`);

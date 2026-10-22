@@ -12,3 +12,14 @@ const STATUS_LABELS: Record<RoomStatus, string> = {
 export function statusLabel(status: RoomStatus): string {
   return STATUS_LABELS[status];
 }
+
+/** Colour tone for a room status pill. */
+export function statusTone(status: RoomStatus): "ok" | "warn" | "accent" | "danger" | "" {
+  switch (status) {
+    case "READY_TO_START": return "ok";
+    case "IN_PROGRESS": return "accent";
+    case "CREATED": return "warn";
+    case "CANCELLED": return "danger";
+    default: return "";
+  }
+}

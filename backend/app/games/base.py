@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import copy
 import random
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -21,6 +22,7 @@ from app.services.errors import ServiceError
 
 State = dict[str, Any]
 Action = dict[str, Any]
+Options = dict[str, Any]
 
 
 class GameError(ServiceError):
@@ -47,6 +49,9 @@ class Outcome:
 
 class GameEngine(ABC):
     info: GameInfo
+    # True when ``deadline`` can return a time: the server then checks these games for
+    # expired clocks even when nobody acts (see rooms.expire_clocks).
+    timed: bool = False
 
     @abstractmethod
     def new_game(self, players: list[str], rng: random.Random) -> State:
@@ -71,6 +76,38 @@ class GameEngine(ABC):
     @abstractmethod
     def _remove_player(self, state: State, player: str) -> None:
         """Remove a player who left or was revoked, in place. May end the game."""
+
+    # -- optional hooks: per-room options and clocks ----------------------------------
+
+    def validate_options(self, options: Options | None) -> Options:
+        """Normalize the room options chosen at creation, or raise GameError."""
+        if options:
+            raise GameError(f"{self.info.name} has no options")
+        return {}
+
+    def options_label(self, options: Options) -> str | None:
+        """A short human-readable summary of the options (shown on room cards)."""
+        return None
+
+    def configure(self, state: State, options: Options) -> None:
+        """Apply validated room options to a freshly created state, in place."""
+
+    def now(self) -> float:
+        """Wall-clock seconds as this engine sees them (engines with clocks inject this)."""
+        return time.time()
+
+    def deadline(self, state: State) -> float | None:
+        """Epoch seconds at which the game ends on time unless someone acts first."""
+        return None
+
+    def expire(self, state: State) -> State:
+        """Apply any clock that has run out. Returns ``state`` itself when nothing changed."""
+        return state
+
+    def start(self, players: list[str], rng: random.Random, options: Options | None = None) -> State:
+        state = self.new_game(players, rng)
+        self.configure(state, options or {})
+        return state
 
     # -- template methods: copy first so a failed action never corrupts state --------
 

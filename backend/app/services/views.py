@@ -86,6 +86,8 @@ def room_summary(room: Room) -> dict[str, Any]:
         "max_players": room.max_players,
         "is_locked": room.is_locked,
         "creator": room.creator_label,
+        "options": room.options or {},
+        "options_label": engine.options_label(room.options or {}) if engine else None,
     }
 
 
