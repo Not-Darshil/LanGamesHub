@@ -1,0 +1,5 @@
+# Development/test dependencies, constrained to the runtime pins.
+-c requirements.txt
+pytest
+httpx2
+pytest-timeout

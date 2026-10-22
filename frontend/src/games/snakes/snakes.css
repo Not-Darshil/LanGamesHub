@@ -1,0 +1,23 @@
+.sl-board-wrap { flex: 1 1 480px; max-width: 560px; }
+.sl-board {
+  position: relative; display: grid; grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr); aspect-ratio: 1; border: 2px solid #374151;
+  border-radius: 6px; overflow: hidden; background: #fefce8;
+}
+.sl-cell { position: relative; border: 1px solid #fde68a; padding: 2px; }
+.sl-dark { background: #fef3c7; }
+.sl-num { font-size: 10px; color: #92400e; }
+.sl-tokens { position: absolute; inset: 14px 2px 2px; display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-end; justify-content: center; z-index: 2; }
+.sl-token { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 40%); margin-right: 4px; vertical-align: middle; }
+.sl-tokens .sl-token { margin: 0; }
+.sl-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.sl-ladder { stroke: #15803d; stroke-width: 1.6; stroke-dasharray: 1.2 0.8; stroke-linecap: round; opacity: 0.8; }
+.sl-snake { stroke: #b91c1c; stroke-width: 1.4; fill: none; stroke-linecap: round; opacity: 0.75; }
+.sl-side { flex: 1 1 260px; }
+.sl-legend li { margin: 4px 0; list-style: none; }
+.sl-legend { padding: 0; }
+.sl-turn { font-weight: 700; }
+.sl-last { display: flex; align-items: center; gap: 8px; }
+.sl-die { font-size: 34px; line-height: 1; }
+.small-print { font-size: 13px; }
+.sl-snake-head { fill: #7f1d1d; opacity: 0.9; }

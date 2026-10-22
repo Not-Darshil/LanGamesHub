@@ -1,0 +1,29 @@
+.uno-players { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.uno-player { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; display: flex; align-items: center; gap: 6px; }
+.uno-current { border-color: var(--accent); box-shadow: 0 0 0 2px #bfdbfe; }
+.uno-table { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; background: #14532d; color: #f0fdf4; border-radius: 12px; padding: 16px 20px; }
+.uno-table .muted { color: #bbf7d0; }
+.uno-pile { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.uno-info p { margin: 4px 0; }
+.uno-card {
+  width: 64px; height: 96px; border-radius: 10px; border: 3px solid #fff; padding: 0;
+  display: inline-grid; place-items: center; font-weight: 800; font-size: 26px; color: #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 25%); text-shadow: 0 1px 2px rgb(0 0 0 / 40%);
+}
+.uno-card:disabled { opacity: 1; cursor: default; }
+.uno-small { width: 44px; height: 66px; font-size: 18px; }
+.uno-red { background: #dc2626; }
+.uno-yellow { background: #eab308; }
+.uno-green { background: #16a34a; }
+.uno-blue { background: #2563eb; }
+.uno-wild { background: conic-gradient(#dc2626 0 25%, #eab308 0 50%, #16a34a 0 75%, #2563eb 0); }
+.uno-hand { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+.uno-hand .uno-card:not(.uno-playable) { filter: saturate(0.35) brightness(0.9); }
+.uno-hand .uno-playable { transform: translateY(-6px); }
+.uno-hand-head { display: flex; gap: 16px; align-items: center; margin-top: 16px; }
+.uno-call { display: flex; gap: 6px; align-items: center; font-weight: 600; color: var(--danger); }
+.uno-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; border: 1px solid #fff; }
+.uno-colors { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+.uno-swatch-btn { color: #fff; border: none; text-transform: capitalize; min-width: 72px; }
+.log-box { margin-top: 16px; }
+.log-box summary { cursor: pointer; color: var(--muted); font-size: 14px; }

@@ -1,0 +1,27 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Offline deployment artifacts
+wheelhouse/
+dist-bundle/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+backups/
+e2e/node_modules/
+e2e/screenshots/

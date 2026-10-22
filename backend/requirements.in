@@ -1,0 +1,11 @@
+# Runtime dependencies. Pinned versions live in requirements.txt (generated).
+# Regenerate with: ../scripts/lock-deps.sh
+fastapi
+uvicorn
+websockets
+sqlalchemy>=2.0,<3
+alembic
+psycopg[binary]
+pydantic-settings
+argon2-cffi
+chess

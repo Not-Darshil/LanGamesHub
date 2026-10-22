@@ -1,0 +1,5 @@
+# Tool configuration only; dependencies are pinned in requirements*.txt.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+timeout = 60

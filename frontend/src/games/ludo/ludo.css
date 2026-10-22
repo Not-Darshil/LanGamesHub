@@ -1,0 +1,34 @@
+.lu-board {
+  display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
+  aspect-ratio: 1; flex: 1 1 480px; max-width: 600px; border: 2px solid #374151; border-radius: 6px;
+  overflow: hidden; background: #fff;
+}
+.lu-cell { position: relative; border: 0.5px solid #d1d5db; display: grid; place-items: center; min-width: 0; }
+.lu-yard { border: none; }
+.lu-blank { border: none; }
+.lu-center { background: #f3f4f6; border: none; }
+.lu-track { background: #fff; }
+.lu-red { background: #ef4444; }
+.lu-green { background: #22c55e; }
+.lu-yellow { background: #eab308; }
+.lu-blue { background: #3b82f6; }
+.lu-red-soft { background: #fecaca; }
+.lu-green-soft { background: #bbf7d0; }
+.lu-yellow-soft { background: #fef08a; }
+.lu-blue-soft { background: #bfdbfe; }
+.lu-star { position: absolute; color: #9ca3af; font-size: 14px; }
+.lu-stack { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; z-index: 1; }
+.lu-token {
+  width: 22px; height: 22px; border-radius: 50%; padding: 0; font-size: 11px; font-weight: 700;
+  border: 2px solid #fff; color: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 45%); line-height: 1;
+}
+.lu-token:disabled { opacity: 1; cursor: default; }
+.lu-movable { outline: 3px solid #111827; animation: lu-pulse 1s ease-in-out infinite; cursor: pointer; }
+@keyframes lu-pulse { 50% { box-shadow: 0 0 0 4px rgb(17 24 39 / 35%); } }
+.lu-side { flex: 1 1 260px; }
+.lu-legend { padding: 0; }
+.lu-legend li { list-style: none; margin: 4px 0; }
+.lu-turn { font-weight: 700; }
+.lu-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.lu-roll { display: flex; align-items: center; gap: 8px; }
+.lu-die { font-size: 34px; line-height: 1; }
