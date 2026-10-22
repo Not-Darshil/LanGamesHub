@@ -37,8 +37,13 @@ digests.
 * Each game engine filters its view per player: UNO hands, Battleship fleets, and the
   legality of a Wild Draw Four are never sent to other players. Battleship never reveals
   unhit enemy ship cells, even after the game ends.
-* The admin dashboard shows room metadata and whose turn it is, but **never game state**,
-  because the host may also be playing.
+* The admin dashboard shows room metadata and whose turn it is, but **never the state of
+  a game in progress**, because the host may also be playing.
+* Finished matches keep their final game state so players can review where a game ended.
+  A participant sees it exactly as the engine's per-player view allows (their own hand
+  or fleet only); other players' private information stays hidden. The host sees the
+  spectator view of finished matches, which contains no hidden information. Players can
+  only list and open matches they took part in, and hidden guests get none.
 
 ## Game integrity
 
@@ -54,6 +59,13 @@ Per-IP rate limits apply to access requests and admin logins, and per-player lim
 game actions. API request bodies are capped at 64 KB, WebSocket messages at 1 KB, and
 each session may hold at most 5 sockets. Pending requests expire. The dashboard flags
 requests from IP addresses that were rejected before.
+
+## Sound controls
+
+The host can mute sound effects for one guest or for everyone (including guests who join
+later). Like Screen Hide, this only affects the LanGamesHub page: the browser is told to
+stop playing its own sound effects. Guests report whether their sound is on so the host
+can see it; nothing else about the device is collected.
 
 ## Guest Screen Hide boundaries
 

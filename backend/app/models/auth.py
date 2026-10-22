@@ -6,6 +6,7 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -73,3 +74,17 @@ class PlayerSession(Base):
              name="screen_visibility"),
         default=ScreenVisibility.VISIBLE, server_default=ScreenVisibility.VISIBLE.value,
     )
+    # Sound effects: whether the browser reports its sound as on (None = never reported),
+    # and whether the host muted this guest. Presentation only, like screen visibility.
+    sound_enabled: Mapped[bool | None] = mapped_column(Boolean)
+    sound_muted_by_host: Mapped[bool] = mapped_column(Boolean, default=False,
+                                                      server_default="false")
+
+
+class AppSetting(Base):
+    """Host-wide settings that must survive restarts (e.g. "mute every guest")."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[object] = mapped_column(JSONB)

@@ -254,7 +254,7 @@
   font-size: 13.5px; color: var(--text-2); transition: background 0.3s, color 0.3s;
 }
 .bs-fleet li:nth-child(odd) { background: var(--surface); }
-.bs-fleet li.sunk { color: #fda4af; }
+.bs-fleet li.sunk { color: var(--danger-ink); }
 .bs-fleet li.sunk > span:first-child { text-decoration: line-through; text-decoration-color: rgb(var(--bs-bad) / 80%); text-decoration-thickness: 2px; }
 .bs-crown { color: var(--warn); }
 
@@ -333,3 +333,16 @@
   45% { transform: translate(-3px, -1px); } 60% { transform: translate(3px, 1px); } 80% { transform: translate(-1px, 0); }
 }
 @keyframes bs-blip { 0%, 100% { opacity: 0; transform: scale(0.4); } 8% { opacity: 1; transform: scale(1.2); } 60% { opacity: 0.25; transform: scale(1); } }
+
+/* ---------- Light theme ---------- */
+:root[data-theme="light"] .bs-grid-wrap { background: var(--panel-bg); border-color: var(--line-strong); }
+:root[data-theme="light"] .bs-cols, :root[data-theme="light"] .bs-rows { color: var(--text-2); }
+:root[data-theme="light"] .bs-sea { border-color: rgb(8 44 73 / 55%); box-shadow: inset 0 0 40px rgb(0 0 0 / 45%), 0 18px 36px -22px rgb(15 23 42 / 55%); }
+:root[data-theme="light"] .bs-pips i { background: linear-gradient(180deg, #b4c0d0, #64748b); box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%), 0 0 0 0.5px rgb(15 23 42 / 25%); }
+:root[data-theme="light"] .bs-pips i.hit { background: linear-gradient(180deg, #fb923c, #ea580c); box-shadow: 0 0 5px rgb(var(--bs-fire) / 55%); }
+:root[data-theme="light"] .bs-pips.sunk i { background: linear-gradient(180deg, #9f1239, #4c0519); box-shadow: none; }
+:root[data-theme="light"] .bs-fleet li.sunk > span:first-child { text-decoration-color: rgb(225 29 72 / 70%); }
+:root[data-theme="light"] .bs-pick.is-sel, :root[data-theme="light"] .bs-pick.is-sel:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgb(var(--bs-cyan) / 16%), rgb(59 130 246 / 8%)); border-color: rgb(8 145 178 / 55%);
+}
+:root[data-theme="light"] .bs-radar-card { background: linear-gradient(135deg, rgb(16 185 129 / 10%), rgb(var(--bs-cyan) / 8%)), var(--solid); border-color: rgb(16 185 129 / 35%); }

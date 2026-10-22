@@ -10,6 +10,7 @@ import { useFeedback } from "../ui/Feedback";
 import { GameIcon } from "../ui/games";
 import { Icon } from "../ui/Icon";
 import { play } from "../ui/sound";
+import { PlaceBadge, StandingsList } from "../ui/Standings";
 
 export function RoomView({
   room,
@@ -58,6 +59,7 @@ export function RoomView({
 
   // Celebrate (or commiserate) when a result arrives while watching, not on reload.
   const won = room.result?.outcome === "WIN" && !!me.nickname && room.result.winners.includes(me.nickname);
+  const myPlace = room.result?.standings?.find((r) => r.id === String(me.id))?.place ?? null;
   const resultKey = room.result ? `${room.id}:${room.result.outcome}:${room.result.reason}` : null;
   const seenResult = useRef(resultKey);
   useEffect(() => {
@@ -118,6 +120,10 @@ export function RoomView({
           </div>
           <span className="spacer" />
           {won && <span className="pill ok">You won!</span>}
+          {!won && myPlace && (room.result.standings?.length ?? 0) > 2 && <PlaceBadge place={myPlace} />}
+          {(room.result.standings?.length ?? 0) > 2 && (
+            <div className="result-standings"><StandingsList standings={room.result.standings!} me={String(me.id)} /></div>
+          )}
         </div>
       )}
       {room.status === "CANCELLED" && !room.result && (

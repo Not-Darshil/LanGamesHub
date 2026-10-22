@@ -12,7 +12,7 @@ from app.api.access import TooManyRequests
 from app.api.deps import get_ctx, require_player
 from app.models import PlayerSession
 from app.services import rooms
-from app.services.views import build_player_view
+from app.services.views import build_player_view, match_detail, player_history
 
 router = APIRouter(prefix="/api", tags=["rooms"])
 
@@ -96,3 +96,18 @@ async def act(room_id: int, body: ActionRequest, request: Request,
     result = await ctx.run(apply)
     ctx.hub.notify()
     return result
+
+
+@router.get("/history")
+async def history(request: Request, session_id: int = Depends(require_player)) -> dict:
+    """Finished matches this player took part in."""
+    ctx = get_ctx(request)
+    return {"matches": await ctx.run(lambda db: player_history(db, session_id))}
+
+
+@router.get("/history/{match_id}")
+async def history_detail(match_id: int, request: Request,
+                         session_id: int = Depends(require_player)) -> dict:
+    """One finished match, with the final position as this player saw it."""
+    ctx = get_ctx(request)
+    return await ctx.run(lambda db: match_detail(db, match_id, session_id))

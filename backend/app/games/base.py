@@ -47,6 +47,23 @@ class Outcome:
     reason: str = ""
 
 
+@dataclass(frozen=True)
+class Placing:
+    player: str
+    place: int        # 1 = first; tied players share a place ("1, 2, 2, 4")
+    detail: str = ""  # e.g. "3 cards left"
+
+
+def rank(entries: list[tuple[str, tuple[Any, ...], str]]) -> list[Placing]:
+    """Competition ranking of (player, key, detail) entries; a higher key is better."""
+    ordered = sorted(entries, key=lambda e: e[1], reverse=True)
+    placings: list[Placing] = []
+    for i, (player, key, detail) in enumerate(ordered):
+        tied = i > 0 and ordered[i - 1][1] == key
+        placings.append(Placing(player, placings[-1].place if tied else i + 1, detail))
+    return placings
+
+
 class GameEngine(ABC):
     info: GameInfo
     # True when ``deadline`` can return a time: the server then checks these games for
@@ -76,6 +93,17 @@ class GameEngine(ABC):
     @abstractmethod
     def _remove_player(self, state: State, player: str) -> None:
         """Remove a player who left or was revoked, in place. May end the game."""
+
+    def standings(self, state: State) -> list[Placing]:
+        """Order of the players still in the game, best first. Called when it ends.
+
+        The default puts the winners first and everyone else level; games with progress
+        (cards left, squares, tokens home) rank the rest by how close they came.
+        """
+        outcome = self.outcome(state)
+        winners = set(outcome.winners) if outcome else set()
+        return rank([(p, (p in winners,), "Winner" if p in winners else "")
+                     for p in state["players"]])
 
     # -- optional hooks: per-room options and clocks ----------------------------------
 

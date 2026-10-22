@@ -5,7 +5,18 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from app.games.base import Action, GameEngine, GameError, GameInfo, Outcome, State, log, who
+from app.games.base import (
+    Action,
+    GameEngine,
+    GameError,
+    GameInfo,
+    Outcome,
+    Placing,
+    State,
+    log,
+    rank,
+    who,
+)
 
 COLORS = ("red", "yellow", "green", "blue")
 HAND_SIZE = 7
@@ -329,6 +340,16 @@ class UnoEngine(GameEngine):
         if state["winner"] is None:
             return None
         return Outcome(winners=[state["winner"]], reason=state["win_reason"])
+
+    def standings(self, state: State) -> list[Placing]:
+        """Winner first, then fewest cards left."""
+        def detail(p: str) -> str:
+            if p == state["winner"]:
+                return "Winner"
+            n = len(state["hands"][p])
+            return f"{n} card{'' if n == 1 else 's'} left"
+        return rank([(p, (p == state["winner"], -len(state["hands"][p])), detail(p))
+                     for p in state["players"]])
 
     def view(self, state: State, player: str | None) -> dict[str, Any]:
         current = self._current(state) if state["players"] else None

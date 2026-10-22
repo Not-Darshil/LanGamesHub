@@ -3,6 +3,8 @@ import { ApiError, api } from "../api";
 import { BlankScreen } from "../BlankScreen";
 import type { PlayerState, SessionInfo } from "../types";
 import { Centered, StepsHint, Topbar } from "../ui/Chrome";
+import { setHostMuted } from "../ui/sound";
+import { useMuted } from "../ui/useSound";
 import { Icon, Logo } from "../ui/Icon";
 import { CLOSE_FORBIDDEN, CLOSE_KICKED, CLOSE_TOO_MANY, CLOSE_UNAUTHENTICATED, useSocket } from "../useSocket";
 import { Lobby } from "./Lobby";
@@ -66,6 +68,16 @@ export function GuestApp() {
   }, [socket.closedWith]);
 
   const session = state?.session;
+
+  // Apply the host's mute, and tell the host whether this browser's sound is on.
+  const [muted] = useMuted();
+  const canReport = phase === "connected" && socket.connected && session?.status === "APPROVED"
+    && !!session.nickname && session.screen !== "HIDDEN";
+  useEffect(() => setHostMuted(!!session?.sound_muted), [session?.sound_muted]);
+  useEffect(() => {
+    if (canReport) void api("PUT", "/api/me/sound", { enabled: !muted }).catch(() => {});
+  }, [canReport, muted]);
+
   const inGame = state?.room?.status === "IN_PROGRESS";
   useEffect(() => {
     if (phase !== "connected" || !session || session.screen === "HIDDEN") return;

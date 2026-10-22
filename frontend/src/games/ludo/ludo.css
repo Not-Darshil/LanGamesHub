@@ -166,3 +166,15 @@
   .lu-pawn { box-shadow: 0 0 0 1.5px #fff, inset 0 -2px 3px rgb(0 0 0 / 28%), 0 2px 4px rgb(0 0 0 / 50%); }
   .lu-movable::before { border-width: 1.5px; }
 }
+
+/* ---------- Light theme ---------- */
+:root[data-theme="light"] .lu-frame {
+  background: linear-gradient(145deg, #ffffff, #e6e9f2 60%, #eef0f6);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 90%) inset, 0 0 0 1px var(--line-strong), var(--shadow-lg);
+}
+:root[data-theme="light"] .lu-my-turn .lu-frame {
+  box-shadow: 0 1px 0 rgb(255 255 255 / 90%) inset, 0 0 0 1px rgb(124 92 255 / 50%), 0 0 50px -16px rgb(124 92 255 / 55%), var(--shadow-lg);
+}
+:root[data-theme="light"] .lu-swatch { box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgb(15 23 42 / 14%), 0 0 8px -2px var(--c); }
+:root[data-theme="light"] .lu-race { background: color-mix(in srgb, var(--c) 45%, transparent); }
+:root[data-theme="light"] .lu-player.is-turn { background: color-mix(in srgb, var(--c) 9%, #fff); }

@@ -26,6 +26,10 @@ class NicknameRequest(BaseModel):
     nickname: str = Field(min_length=1, max_length=64)
 
 
+class SoundRequest(BaseModel):
+    enabled: bool
+
+
 class TooManyRequests(ServiceError):
     status_code = 429
 
@@ -100,3 +104,13 @@ async def set_nickname(body: NicknameRequest, request: Request,
     view = await ctx.run(update)
     ctx.hub.notify()
     return view
+
+
+@router.put("/me/sound")
+async def report_sound(body: SoundRequest, request: Request,
+                       session_id: int = Depends(require_player)) -> dict:
+    """The browser reports its sound setting so the host can see whose audio is on."""
+    ctx = get_ctx(request)
+    if await ctx.run(lambda db: players.report_sound(db, session_id, body.enabled)):
+        ctx.hub.notify()
+    return {"enabled": body.enabled}

@@ -1,14 +1,34 @@
 import type { ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import { Icon, Logo } from "./Icon";
-import { useMuted } from "./useSound";
+import { setTheme, useTheme } from "./theme";
+import { useHostMuted, useMuted } from "./useSound";
 
 export function SoundToggle() {
   const [muted, setMuted] = useMuted();
+  const hostMuted = useHostMuted();
+  if (hostMuted) {
+    return (
+      <span className="host-muted" title="The host has muted sound for everyone in this room" aria-label="Muted by the host">
+        <Icon name="volume-x" size={16} /><Icon name="lock" size={11} />
+      </span>
+    );
+  }
   return (
     <button type="button" className="ghost icon-btn" onClick={() => setMuted(!muted)}
       aria-label={muted ? "Unmute sounds" : "Mute sounds"} title={muted ? "Sounds off" : "Sounds on"}>
       <Icon name={muted ? "volume-x" : "volume"} />
+    </button>
+  );
+}
+
+export function ThemeToggle() {
+  const theme = useTheme();
+  const next = theme === "dark" ? "light" : "dark";
+  return (
+    <button type="button" className="ghost icon-btn theme-toggle" onClick={() => setTheme(next)}
+      aria-label={`Switch to ${next} theme`} title={`Switch to ${next} theme`}>
+      <Icon name={theme === "dark" ? "sun" : "moon"} />
     </button>
   );
 }
@@ -32,6 +52,7 @@ export function Topbar({ subtitle, connected, name, badge, children }: {
       </span>
       <span className="topbar-right">
         <ConnectionPill connected={connected} />
+        <ThemeToggle />
         <SoundToggle />
         {name && (
           <span className="me-chip">
@@ -51,6 +72,7 @@ export function Centered({ children }: { children: ReactNode }) {
   return (
     <main className="centered">
       <div className="orbs" aria-hidden="true"><span /><span /><span /></div>
+      <div className="corner-tools"><ThemeToggle /></div>
       <div className="card">{children}</div>
     </main>
   );

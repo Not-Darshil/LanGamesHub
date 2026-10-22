@@ -425,9 +425,26 @@ def _record_result(db: Session, room: Room, kind: str, winners: list[str], reaso
         winners=winners,
         participants=room.participants or [],
         reason=reason[:200],
+        standings=_standings(room),
+        final_state=room.game_state,
         started_at=room.started_at,
         finished_at=utcnow(),
     ))
+
+
+def _standings(room: Room) -> list[dict[str, Any]]:
+    """Final placings: the engine ranks players still in the game; leavers come last."""
+    if room.game_state is None:
+        return []
+    names = participant_names(room)
+    placings = engine_for(room).standings(room.game_state)
+    rows = [{"id": p.player, "nickname": names.get(p.player, p.player), "place": p.place,
+             "detail": p.detail} for p in placings]
+    ranked = {p.player for p in placings}
+    last = len(rows) + 1
+    rows += [{"id": pid, "nickname": nickname, "place": last, "detail": "Left the game"}
+             for pid, nickname in names.items() if pid not in ranked]
+    return rows
 
 
 def _nickname(db: Session, session_id: int) -> str:

@@ -4,6 +4,7 @@ from app.db import Base
 from app.models.auth import (
     AdminSession,
     AdminUser,
+    AppSetting,
     PlayerSession,
     ScreenVisibility,
     SessionStatus,
@@ -22,6 +23,7 @@ __all__ = [
     "TERMINAL_STATUSES",
     "AdminSession",
     "AdminUser",
+    "AppSetting",
     "Base",
     "MatchResult",
     "PlayerSession",

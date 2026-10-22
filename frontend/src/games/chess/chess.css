@@ -134,10 +134,38 @@
 .ch-moves-head { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
 .ch-moves {
   list-style: none; margin: 0; padding: 4px; max-height: 260px; overflow-y: auto; border-radius: var(--radius);
-  background: rgb(0 0 0 / 22%); border: 1px solid var(--line); font-family: var(--font-mono); font-size: 13.5px;
+  background: var(--well); border: 1px solid var(--line); font-family: var(--font-mono); font-size: 13.5px;
 }
 .ch-moves li { display: grid; grid-template-columns: 38px 1fr 1fr; gap: 4px; padding: 3px 6px; border-radius: 6px; }
 .ch-moves li:nth-child(even) { background: rgb(255 255 255 / 3%); }
 .ch-moves .ch-move-no { color: var(--muted); }
 .ch-moves .latest { color: #fff; font-weight: 700; background: var(--accent-soft); border-radius: 5px; padding: 0 6px; margin-left: -6px; animation: fade-in 0.4s; }
 .ch-moves .ch-moves-empty { display: block; color: var(--muted); font-family: var(--font); padding: 10px; text-align: center; }
+
+/* ---------- Light theme (the board keeps its own wood/ocean/emerald/midnight colours) ---------- */
+:root[data-theme="light"] .ch-player { background: var(--solid); box-shadow: var(--shadow-sm); }
+:root[data-theme="light"] .ch-player.active { background: color-mix(in srgb, var(--accent) 8%, #fff); }
+:root[data-theme="light"] .ch-side-chip.white { background: #fff; border: 1px solid var(--line-strong); }
+:root[data-theme="light"] .ch-side-chip.black { background: #0f172a; color: #f1f5f9; border-color: #0f172a; }
+:root[data-theme="light"] .ch-captured .cap-white { color: #fff; -webkit-text-stroke: 0.8px #334155; }
+:root[data-theme="light"] .ch-captured .cap-black { color: #1e293b; -webkit-text-stroke: 0.6px #1e293b; }
+/* Idle clock: a quiet well; running clock: inverted dark face so the active side stands out on a light page. */
+:root[data-theme="light"] .ch-clock { background: var(--surface-2); border-color: var(--line-strong); }
+:root[data-theme="light"] .ch-clock-time { color: var(--text-2); }
+:root[data-theme="light"] .ch-clock-bar span { background: #94a3b8; }
+:root[data-theme="light"] .ch-clock.running { background: #0f172a; border-color: #0f172a; box-shadow: 0 8px 22px -10px rgb(15 23 42 / 60%); }
+:root[data-theme="light"] .ch-clock.running .ch-clock-time { color: #fff; }
+:root[data-theme="light"] .ch-clock.running .ch-clock-bar { background: rgb(255 255 255 / 18%); }
+:root[data-theme="light"] .ch-clock.low .ch-clock-time { color: var(--danger); }
+:root[data-theme="light"] .ch-clock.low.running { background: #fff1f2; border-color: #fb7185; }
+:root[data-theme="light"] .ch-clock.low.running .ch-clock-time { color: #be123c; }
+:root[data-theme="light"] .ch-clock.low.running .ch-clock-bar { background: rgb(225 29 72 / 15%); }
+:root[data-theme="light"] .ch-clock.flagged { border-color: rgb(225 29 72 / 45%); }
+:root[data-theme="light"] .ch-board-frame { box-shadow: 0 24px 50px -22px rgb(15 23 42 / 55%), inset 0 1px 0 rgb(255 255 255 / 12%); }
+:root[data-theme="light"] .ch-board-frame.my-turn { box-shadow: 0 24px 50px -22px rgb(15 23 42 / 55%), 0 0 0 2px rgb(124 92 255 / 60%), 0 0 36px -8px rgb(124 92 255 / 50%); }
+:root[data-theme="light"] .ch-turn-dot.white { border-color: #94a3b8; }
+:root[data-theme="light"] .ch-moves { background: var(--solid); border-color: var(--line-strong); }
+:root[data-theme="light"] .ch-moves li { color: var(--text); }
+:root[data-theme="light"] .ch-moves li:nth-child(even) { background: var(--surface-2); }
+:root[data-theme="light"] .ch-moves .latest { color: var(--accent-ink); }
+:root[data-theme="light"] .ch-offer { border-color: rgb(124 92 255 / 35%); }

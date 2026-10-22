@@ -8,6 +8,7 @@ export type Sound =
 
 const KEY = "lgh-sound-muted";
 let muted = readMuted();
+let hostMuted = false; // the host silenced this browser (overrides the player's choice)
 let ctx: AudioContext | null = null;
 const listeners = new Set<() => void>();
 
@@ -30,6 +31,16 @@ export function setMuted(value: boolean): void {
   } catch {
     /* storage unavailable: keep the in-memory setting */
   }
+  listeners.forEach((l) => l());
+}
+
+export function isHostMuted(): boolean {
+  return hostMuted;
+}
+
+export function setHostMuted(value: boolean): void {
+  if (hostMuted === value) return;
+  hostMuted = value;
   listeners.forEach((l) => l());
 }
 
@@ -99,7 +110,7 @@ function noise(a: AudioContext, { dur = 0.08, vol = 0.12, at = 0, freq = 1800, q
 }
 
 export function play(sound: Sound): void {
-  if (muted) return;
+  if (muted || hostMuted) return;
   const a = audio();
   if (!a || a.state !== "running") return;
   try {

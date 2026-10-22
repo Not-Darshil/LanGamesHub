@@ -6,7 +6,9 @@ import { Avatar } from "../ui/Avatar";
 import { useFeedback } from "../ui/Feedback";
 import { GameIcon } from "../ui/games";
 import { Icon, type IconName } from "../ui/Icon";
+import { MatchRow, MatchViewer } from "../ui/MatchViewer";
 import { play } from "../ui/sound";
+import { Tabs } from "../ui/Tabs";
 import { TimeControlPicker } from "../ui/TimeControlPicker";
 
 type Run = (method: string, path: string, body?: unknown) => Promise<boolean>;
@@ -50,7 +52,7 @@ export function Dashboard({ state }: { state: AdminState }) {
       </div>
       <PendingQueue pending={state.pending} run={run} />
       <Rooms rooms={state.rooms} games={state.games} run={run} />
-      <Players players={state.players} run={run} />
+      <Players players={state.players} mutedAll={!!state.sound_muted_all} run={run} />
       <div className="dash-two">
         <HostPlayer run={run} />
         <History state={state} />
@@ -128,7 +130,36 @@ function browserName(ua: string): string {
   return os ? `${browser} on ${os}` : ua || "Unknown";
 }
 
-function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
+type SoundState = "on" | "off" | "host" | "unknown" | "offline";
+
+function soundState(p: AdminPlayer, mutedAll: boolean): SoundState {
+  if (mutedAll || p.sound_muted_by_host) return "host";
+  if (!p.online) return "offline";
+  if (p.sound_enabled == null) return "unknown";
+  return p.sound_enabled ? "on" : "off";
+}
+
+function SoundCell({ player, mutedAll, run }: { player: AdminPlayer; mutedAll: boolean; run: Run }) {
+  const state = soundState(player, mutedAll);
+  const label = { on: "Sound on", off: "Muted by guest", host: "Muted by host", unknown: "Not reported", offline: "Offline" }[state];
+  return (
+    <span className="row sound-cell">
+      <span className={`sound-status ${state}`} title={label}>
+        {state === "on" ? <span className="eq" aria-hidden="true"><i /><i /><i /></span> : <Icon name="volume-x" size={14} />}
+        {label}
+      </span>
+      {!mutedAll && (
+        <button className="ghost icon-btn small" title={player.sound_muted_by_host ? "Unmute this player" : "Mute this player"}
+          aria-label={player.sound_muted_by_host ? `Unmute ${player.nickname ?? "player"}` : `Mute ${player.nickname ?? "player"}`}
+          onClick={() => run("PUT", `/api/admin/players/${player.id}/sound`, { muted: !player.sound_muted_by_host })}>
+          <Icon name={player.sound_muted_by_host ? "volume" : "volume-x"} size={15} />
+        </button>
+      )}
+    </span>
+  );
+}
+
+function Players({ players, mutedAll, run }: { players: AdminPlayer[]; mutedAll: boolean; run: Run }) {
   const { confirm } = useFeedback();
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -144,7 +175,17 @@ function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
     <section className="panel">
       <div className="panel-head">
         <h2>Players <span className="pill">{active.length}</span></h2>
+        <span className="row">
+          <span className="pill" title="Online players whose browser has sound on and is not muted">
+            <Icon name="volume" size={13} />{active.filter((p) => soundState(p, mutedAll) === "on").length} hearing sound
+          </span>
+          <button className={`small ${mutedAll ? "warm" : "secondary"}`} aria-pressed={mutedAll}
+            onClick={() => run("PUT", "/api/admin/sound", { muted: !mutedAll })}>
+            <Icon name={mutedAll ? "volume" : "volume-x"} size={14} />{mutedAll ? "Unmute everyone" : "Mute everyone"}
+          </button>
+        </span>
       </div>
+      {mutedAll && <p className="banner"><Icon name="volume-x" size={16} />Sound is muted for every guest, including anyone who joins later.</p>}
       {active.length === 0 ? (
         <div className="empty">
           <span className="empty-icon"><Icon name="users" size={24} /></span>
@@ -153,7 +194,7 @@ function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
       ) : (
         <table>
           <thead>
-            <tr><th>Nickname</th><th>IP address</th><th>Connection</th><th>Room</th><th>Screen</th><th /></tr>
+            <tr><th>Nickname</th><th>IP address</th><th>Connection</th><th>Room</th><th>Sound</th><th>Screen</th><th /></tr>
           </thead>
           <tbody>
             {active.map((p) => (
@@ -181,6 +222,7 @@ function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
                 <td><code>{p.ip_address}</code></td>
                 <td><span className={`pill ${p.online ? "ok" : ""}`}><span className={`dot ${p.online ? "dot-on" : "dot-off"}`} style={{ marginRight: 0 }} />{p.online ? "online" : "offline"}</span></td>
                 <td>{p.room ? <span>{p.room.name} <span className="muted small-print">({statusLabel(p.room.status)})</span></span> : <span className="muted">lobby</span>}</td>
+                <td><SoundCell player={p} mutedAll={mutedAll} run={run} /></td>
                 <td>
                   {p.screen === "HIDDEN" ? (
                     <span className="row">
@@ -227,21 +269,32 @@ function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
 }
 
 function Rooms({ rooms, games, run }: { rooms: AdminRoom[]; games: GameInfo[]; run: Run }) {
+  const [tab, setTab] = useState<"active" | "finished">("active");
   const active = rooms.filter((r) => r.status !== "COMPLETED" && r.status !== "CANCELLED");
-  const done = rooms.filter((r) => r.status === "COMPLETED" || r.status === "CANCELLED");
+  const done = rooms.filter((r) => r.status === "COMPLETED" || r.status === "CANCELLED")
+    .sort((a, b) => b.id - a.id);
+  const shown = tab === "active" ? active : done;
   return (
     <section className="panel">
-      <div className="panel-head"><h2>Rooms <span className="pill">{active.length}</span></h2></div>
-      <CreateRoom games={games} run={run} />
-      {rooms.length === 0 ? (
+      <div className="panel-head">
+        <h2>Rooms</h2>
+        <Tabs label="Rooms" value={tab} onChange={setTab} tabs={[
+          { key: "active", label: "Active", count: active.length },
+          { key: "finished", label: "Finished", count: done.length },
+        ]} />
+      </div>
+      {tab === "active" && <CreateRoom games={games} run={run} />}
+      {shown.length === 0 ? (
         <div className="empty">
           <span className="empty-icon"><Icon name="gamepad" size={24} /></span>
-          <strong>No rooms</strong>
-          <span>Create one above. Guests can also propose rooms for you to approve.</span>
+          <strong>{tab === "active" ? "No active rooms" : "No finished rooms"}</strong>
+          <span>{tab === "active"
+            ? "Create one above. Guests can also propose rooms for you to approve."
+            : "Rooms that finished in the last 12 hours appear here. Full results are under Recent matches."}</span>
         </div>
       ) : (
-        <div className="admin-rooms stagger">
-          {[...active, ...done].map((r, i) => <RoomCard key={r.id} room={r} run={run} index={i} />)}
+        <div key={tab} className="admin-rooms stagger tab-panel">
+          {shown.map((r, i) => <RoomCard key={r.id} room={r} run={run} index={i} />)}
         </div>
       )}
     </section>
@@ -409,30 +462,31 @@ function HostPlayer({ run }: { run: Run }) {
 }
 
 function History({ state }: { state: AdminState }) {
+  const [tab, setTab] = useState("all");
+  const [open, setOpen] = useState<number | null>(null);
+  const types = state.games.filter((g) => state.history.some((h) => h.game_type === g.game_type));
+  const shown = tab === "all" ? state.history : state.history.filter((h) => h.game_type === tab);
   return (
     <section className="panel">
-      <div className="panel-head"><h2><Icon name="history" />Recent matches</h2></div>
+      <div className="panel-head">
+        <h2><Icon name="history" />Recent matches</h2>
+      </div>
       {state.history.length === 0 ? (
         <p className="muted small-print">Finished matches appear here.</p>
       ) : (
-        <ul className="history">
-          {state.history.map((h) => (
-            <li key={h.id}>
-              <GameIcon gameType={h.game_type} size="small" />
-              <div className="grow">
-                <div><strong>{h.room_name}</strong> <span className="muted small-print">{state.games.find((g) => g.game_type === h.game_type)?.name ?? h.game_type}</span></div>
-                <div className="small-print muted">{h.participants.join(", ")}</div>
-              </div>
-              <div className="history-result">
-                <span className={`pill ${h.outcome === "WIN" ? "ok" : h.outcome === "DRAW" ? "accent" : ""}`}>
-                  {h.outcome === "WIN" ? `Won by ${h.winners.join(", ")}` : h.outcome.toLowerCase()}
-                </span>
-                <span className="small-print muted">{h.reason ? `${h.reason} · ` : ""}{new Date(h.finished_at).toLocaleString()}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div style={{ marginBottom: 12 }}>
+            <Tabs label="Matches by game" value={tab} onChange={setTab} tabs={[
+              { key: "all", label: "All", count: state.history.length },
+              ...types.map((g) => ({ key: g.game_type, label: g.name, count: state.history.filter((h) => h.game_type === g.game_type).length })),
+            ]} />
+          </div>
+          <ul key={tab} className="match-list tab-panel">
+            {shown.map((h, i) => <li key={h.id}><MatchRow match={h} index={i} onOpen={() => setOpen(h.id)} /></li>)}
+          </ul>
+        </>
       )}
+      {open !== null && <MatchViewer url={`/api/admin/history/${open}`} onClose={() => setOpen(null)} />}
     </section>
   );
 }

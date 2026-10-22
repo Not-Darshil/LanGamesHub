@@ -320,3 +320,44 @@
   .uno-callout { flex-direction: column; text-align: center; }
   .uno-callout .row { justify-content: center; }
 }
+
+/* ---------- Light theme ----------
+   The felt table is a dark object in both themes, so inside it the dark-theme tokens are pinned:
+   pills, buttons, avatars and the Wild Draw Four callout on the felt keep their dark look. */
+:root[data-theme="light"] .uno-table {
+  color-scheme: dark;
+  --bg: #090c15;
+  --surface: rgb(255 255 255 / 3.5%);
+  --surface-2: rgb(255 255 255 / 6%);
+  --surface-3: rgb(255 255 255 / 10%);
+  --solid: #131829;
+  --solid-2: #1a2036;
+  --line: rgb(255 255 255 / 8%);
+  --line-strong: rgb(255 255 255 / 15%);
+  --line-hover: rgb(255 255 255 / 22%);
+  --text: #eef0f8;
+  --text-2: #b7bdd1;
+  --muted: #7f87a1;
+  --accent-soft: rgb(124 92 255 / 16%);
+  --ok: #34d399;
+  --ok-soft: rgb(52 211 153 / 14%);
+  --warn: #fbbf24;
+  --warn-soft: rgb(251 191 36 / 14%);
+  --danger: #fb7185;
+  --danger-soft: rgb(251 113 133 / 14%);
+  --shadow-sm: 0 2px 8px -2px rgb(0 0 0 / 45%);
+  --shadow: 0 12px 32px -12px rgb(0 0 0 / 65%);
+  --input-bg: rgb(0 0 0 / 25%);
+  --well: rgb(0 0 0 / 22%);
+  --inset-hi: 0 1px 0 rgb(255 255 255 / 5%) inset;
+  --dot-off: #4b5268;
+  --accent-ink: #c4b5fd;
+  --ok-ink: #6ee7b7;
+  --warn-ink: #fcd34d;
+  --danger-ink: #fda4af;
+  --danger-ink-strong: #ffe4e6;
+  /* The light page shows through the wood rim's outer hairline; give it a soft edge instead of a white line. */
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 25%), 0 0 0 8px #2a211b, 0 0 0 9px rgb(15 23 42 / 18%),
+    0 30px 70px -24px rgb(15 23 42 / 40%), inset 0 0 90px rgb(0 0 0 / 45%);
+}
+:root[data-theme="light"] .uno-table .avatar .avatar-status { border-color: #0f5a33; }

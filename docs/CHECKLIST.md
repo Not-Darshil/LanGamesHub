@@ -56,10 +56,18 @@ Each game has an engine with rule and randomized/fuzz tests, an API integration 
 - [x] Room options (migration 0005) and server-side chess clocks: 1+0, 3+2, 5+0, 10+0, 15+10, 30+0 or none; timeout and timeout-vs-insufficient-material; periodic flag check
 - [ ] Re-run the offline bundle rehearsal with this version
 
+## Phase 8: Host controls, themes, standings and history
+- [x] Light and dark themes (follows the system until chosen; remembered per browser)
+- [x] Host sound controls: mute everyone or one guest; guests report whether their sound is on
+- [x] Host dashboard tabs: active vs finished rooms, recent matches by game; matches open their end screen
+- [x] Final standings (#1, #2, #3…) for every match, ranked by progress; leavers last (migration 0006)
+- [x] Players' own match history with placings and a read-only final position for each match
+
 ## Test results (latest run, 2026-10-23)
-- Backend: **531 passed, 4 skipped** (adds chess clock engine and API tests).
-- Browser E2E: `node e2e/run.mjs` → **48/48 checks**, all five games plus a timed chess game,
-  zero requests to external hosts.
+- Backend: **540 passed, 4 skipped** (adds chess clock, standings, history and sound tests).
+- Browser E2E: `node e2e/run.mjs` → **60/60 checks**: all five games, a timed chess game, a
+  3-player game with standings, sound and theme controls, and every match's end screen
+  for players and the host; zero requests to external hosts.
 
 ## Test results (2026-10-22)
 - Backend: `backend/.venv/bin/python -m pytest` → **518 passed, 4 skipped** (the skips are

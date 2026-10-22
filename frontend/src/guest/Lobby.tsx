@@ -5,12 +5,15 @@ import type { GameInfo, RoomSummary } from "../types";
 import { useFeedback, Modal } from "../ui/Feedback";
 import { GameIcon, gameMeta } from "../ui/games";
 import { Icon } from "../ui/Icon";
+import { Tabs } from "../ui/Tabs";
 import { TimeControlPicker } from "../ui/TimeControlPicker";
+import { MyMatches } from "./MyMatches";
 
 export function Lobby({ lobby, nickname }: { lobby: { games: GameInfo[]; rooms: RoomSummary[] }; nickname: string }) {
   const { toast } = useFeedback();
   const [proposing, setProposing] = useState<GameInfo | null>(null);
   const [joining, setJoining] = useState<number | null>(null);
+  const [tab, setTab] = useState<"play" | "history">("play");
 
   const join = async (roomId: number) => {
     setJoining(roomId);
@@ -39,6 +42,13 @@ export function Lobby({ lobby, nickname }: { lobby: { games: GameInfo[]; rooms: 
         </div>
       </div>
 
+      <div className="lobby-tabs">
+        <Tabs label="Lobby sections" value={tab} onChange={setTab} tabs={[
+          { key: "play", label: "Play" },
+          { key: "history", label: "My matches" },
+        ]} />
+      </div>
+      {tab === "history" ? <div className="tab-panel"><MyMatches refreshKey={lobby.rooms.length} /></div> : <div className="tab-panel">
       <div className="section-head">
         <div>
           <h2>Open rooms</h2>
@@ -82,6 +92,7 @@ export function Lobby({ lobby, nickname }: { lobby: { games: GameInfo[]; rooms: 
           </button>
         ))}
       </div>
+      </div>}
       {proposing && <ProposeRoom game={proposing} onClose={() => setProposing(null)} />}
     </section>
   );

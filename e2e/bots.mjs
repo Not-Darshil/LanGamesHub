@@ -88,6 +88,31 @@ export const GAME_BOTS = {
       return `${rolls} rolls, ${tokens} tokens on board`;
     },
   },
+  snakes_3p: {
+    css: "snakes",
+    gameType: "snakes",
+    players: 3,
+    async play(pages) {
+      let rolls = 0;
+      for (; rolls < 12 && !(await finished(pages)); rolls++) {
+        const page = await whoseTurn(pages, '.game-status:text("Your turn")');
+        if (!page) break;
+        const before = await version(page);
+        await page.getByRole("button", { name: "Roll the die" }).click();
+        await waitForUpdate(page, before);
+      }
+      return `${rolls} rolls with 3 players`;
+    },
+    async after(pages, check) {
+      const counts = await Promise.all(pages.map(async (p) => {
+        await p.locator(".result .standings li").first().waitFor();
+        return p.locator(".result .standings li").count();
+      }));
+      const first = await pages[0].locator(".result .standings li").first().innerText();
+      check("3+ players: everyone sees the ranked #1/#2/#3 standings", counts.every((n) => n === 3) && first.includes("#1"),
+        `${counts} · ${first.replace(/\n/g, " ")}`);
+    },
+  },
   ludo: {
     css: "ludo",
     async play(pages, check) {

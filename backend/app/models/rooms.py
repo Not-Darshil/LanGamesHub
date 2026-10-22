@@ -99,5 +99,10 @@ class MatchResult(Base):
     winners: Mapped[list[str]] = mapped_column(JSONB)
     participants: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     reason: Mapped[str] = mapped_column(String(200), default="")
+    # Final placings: [{"id", "nickname", "place", "detail"}], best first (ties share a place).
+    standings: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list,
+                                                            server_default="[]")
+    # The game state when it ended, so participants can review the final position.
+    final_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

@@ -147,3 +147,11 @@
 @keyframes sl-halo { 0%, 100% { opacity: 0; } 50% { opacity: 0.75; } }
 @keyframes sl-tongue { 0%, 70%, 100% { transform: scaleX(0.15); } 78%, 92% { transform: scaleX(1); } 85% { transform: scaleX(0.75); } }
 @keyframes sl-crown { 0%, 100% { transform: translate(-50%, -50%) rotate(-4deg); } 50% { transform: translate(-50%, -56%) rotate(4deg); } }
+
+/* ---------- Light theme ---------- */
+:root[data-theme="light"] .sl-frame {
+  background: linear-gradient(145deg, #ffffff, #e9e6f7 55%, #e4edf6);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgb(255 255 255 / 90%), 0 0 60px -24px rgb(124 92 255 / 35%);
+}
+:root[data-theme="light"] .sl-swatch { box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgb(15 23 42 / 14%), 0 0 8px -2px var(--c); }
+:root[data-theme="light"] .sl-legend svg { color: #0891b2; }

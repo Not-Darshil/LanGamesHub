@@ -14,6 +14,8 @@ export interface SessionInfo {
   nickname?: string | null;
   is_host?: boolean;
   screen: Screen;
+  /** The host muted this browser's sound effects. */
+  sound_muted?: boolean;
 }
 
 export interface GameInfo {
@@ -48,10 +50,18 @@ export interface Member {
   is_host: boolean;
 }
 
+export interface Standing {
+  id: string;
+  nickname: string;
+  place: number;
+  detail: string;
+}
+
 export interface MatchResultInfo {
   outcome: "WIN" | "DRAW" | "ABORTED" | "CANCELLED";
   winners: string[];
   reason: string;
+  standings?: Standing[];
 }
 
 export interface RoomDetail extends RoomSummary {
@@ -83,6 +93,9 @@ export interface AdminPlayer extends SessionInfo {
   online: boolean;
   room: { id: number; name: string; status: RoomStatus } | null;
   prior_rejections?: number;
+  /** What the guest's browser reports (null = never reported). */
+  sound_enabled: boolean | null;
+  sound_muted_by_host: boolean;
 }
 
 export interface AdminRoom extends RoomSummary {
@@ -98,11 +111,21 @@ export interface HistoryEntry {
   id: number;
   room_name: string;
   game_type: string;
+  game_name: string;
   outcome: string;
   winners: string[];
   reason: string;
   participants: string[];
+  standings: Standing[];
+  has_replay: boolean;
+  started_at: string | null;
   finished_at: string;
+  /** Only in a player's own history. */
+  my_place?: number | null;
+}
+
+export interface MatchDetail extends HistoryEntry {
+  game: (GameViewBase & Record<string, unknown>) | null;
 }
 
 export interface AdminState {
@@ -111,4 +134,5 @@ export interface AdminState {
   rooms: AdminRoom[];
   games: GameInfo[];
   history: HistoryEntry[];
+  sound_muted_all: boolean;
 }
