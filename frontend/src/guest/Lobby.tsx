@@ -6,7 +6,7 @@ import { useFeedback, Modal } from "../ui/Feedback";
 import { GameIcon, gameMeta } from "../ui/games";
 import { Icon } from "../ui/Icon";
 import { Tabs } from "../ui/Tabs";
-import { TimeControlPicker } from "../ui/TimeControlPicker";
+import { cleanOptions, defaultOptions, GameOptionsPicker } from "../ui/GameOptions";
 import { MyMatches } from "./MyMatches";
 
 export function Lobby({ lobby, nickname }: { lobby: { games: GameInfo[]; rooms: RoomSummary[] }; nickname: string }) {
@@ -140,10 +140,10 @@ function ProposeRoom({ game, onClose }: { game: GameInfo; onClose: () => void })
   const { toast } = useFeedback();
   const [name, setName] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(game.max_players);
-  const [timeControl, setTimeControl] = useState<string | null>("10+0");
+  const [options, setOptions] = useState(() => defaultOptions(game.game_type));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const isChess = game.game_type === "chess";
+  const hasOptions = Object.keys(defaultOptions(game.game_type)).length > 0;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -152,7 +152,7 @@ function ProposeRoom({ game, onClose }: { game: GameInfo; onClose: () => void })
     try {
       await api("POST", "/api/rooms", {
         game_type: game.game_type, name: name || game.name, max_players: maxPlayers,
-        ...(isChess && timeControl ? { options: { time_control: timeControl } } : {}),
+        options: cleanOptions(options),
       });
       toast("Room proposed. Waiting for the host to approve it.", "success");
       onClose();
@@ -164,7 +164,7 @@ function ProposeRoom({ game, onClose }: { game: GameInfo; onClose: () => void })
   };
 
   return (
-    <Modal onClose={onClose} wide={isChess} labelledBy="propose-title">
+    <Modal onClose={onClose} wide={hasOptions} labelledBy="propose-title">
       <div className="row" style={{ gap: 14, marginBottom: 14 }}>
         <GameIcon gameType={game.game_type} size="large" />
         <div>
@@ -187,12 +187,7 @@ function ProposeRoom({ game, onClose }: { game: GameInfo; onClose: () => void })
             </div>
           </div>
         )}
-        {isChess && (
-          <div className="field">
-            <span>Time control</span>
-            <TimeControlPicker value={timeControl} onChange={setTimeControl} />
-          </div>
-        )}
+        <GameOptionsPicker gameType={game.game_type} value={options} onChange={setOptions} />
         {error && <p className="error">{error}</p>}
         <div className="modal-actions">
           <button type="button" className="secondary" onClick={onClose}>Cancel</button>

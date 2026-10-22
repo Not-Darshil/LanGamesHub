@@ -732,3 +732,4 @@ details.ended summary { display: inline-flex; align-items: center; gap: 6px; fon
 @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 12px; } }
 .lobby-tabs { margin: 24px 0 6px; }
 .lobby-tabs + .tab-panel > .stat-grid { margin-top: 14px; }
+.create-room-options:not(:empty) { margin-top: 14px; }

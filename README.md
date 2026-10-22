@@ -10,7 +10,9 @@ remote font, external login, or Node.js is needed on the host or the guest PCs.
 1) Snakes and Ladders
 1) Ludo
 1) Battleship
-1) Chess
+1) Chess (optional clocks: bullet to classical)
+1) Business (property trading with Indian cities; optional time limit)
+1) Typing Race (2–8 players, server-timed)
 
 Rules for each game are documented in [docs/games/](docs/games/). The server enforces
 every rule; browsers only send intents ("play card 17") and never game state.

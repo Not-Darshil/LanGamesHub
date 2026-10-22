@@ -1,3 +1,6 @@
+import { business } from "./bots/business.mjs";
+import { typing } from "./bots/typing.mjs";
+
 // Per-game "bots" that play through the real UI by clicking like a person would.
 // Each returns a short summary; `check` records assertions.
 
@@ -36,6 +39,8 @@ async function finished(pages) {
 }
 
 export const GAME_BOTS = {
+  typing,
+  business,
   uno: {
     css: "uno",
     async play(pages, check) {

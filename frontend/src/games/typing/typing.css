@@ -1,0 +1,167 @@
+/* ---------- Typing Race ---------- */
+.typing .ty-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ty-card {
+  padding: 16px 18px; border-radius: var(--radius-lg); background: var(--panel-bg);
+  border: 1px solid var(--line); box-shadow: var(--shadow); min-width: 0;
+}
+.ty-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.ty-card-head h3 {
+  display: flex; align-items: center; gap: 7px; margin: 0; font-size: 13px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+
+/* Lanes */
+.ty-lanes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ty-lane { --seat: var(--accent); display: flex; flex-direction: column; gap: 4px; }
+.ty-lane-head { display: flex; align-items: center; gap: 8px; font-size: 13.5px; min-width: 0; }
+.ty-seat-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--seat); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--seat) 22%, transparent); }
+.ty-lane-name { font-weight: 650; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ty-lane-wpm { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.ty-lane-wpm small { font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
+.ty-lane-pct { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); }
+.ty-lane-place { min-width: 38px; text-align: right; font-size: 20px; line-height: 1; animation: bounce-in 0.7s var(--spring); }
+
+.ty-road {
+  position: relative; height: 34px; border-radius: 11px; overflow: hidden;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 22px, color-mix(in srgb, var(--text) 13%, transparent) 22px 34px) center / 100% 2px no-repeat,
+    var(--well);
+  border: 1px solid var(--line);
+}
+.ty-lane.me .ty-road { border-color: color-mix(in srgb, var(--seat) 55%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--seat) 25%, transparent); }
+.ty-road-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--seat) 28%, transparent));
+  transition: width 0.45s var(--ease);
+}
+.ty-finish-line {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 12px; opacity: 0.85;
+  background: repeating-conic-gradient(#111827 0 25%, #f8fafc 0 50%) 0 0 / 6px 6px;
+}
+.ty-car {
+  position: absolute; top: 50%; left: calc((100% - 58px) * var(--p, 0) / 100);
+  transform: translateY(-52%); transition: left 0.45s var(--ease); line-height: 0;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 35%));
+}
+.ty-car.moving::before {
+  content: ""; position: absolute; right: 100%; top: 40%; width: 16px; height: 6px; border-radius: 3px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--seat) 70%, transparent));
+  animation: ty-trail 0.5s ease-in-out infinite alternate;
+}
+.ty-lane.done .ty-car { animation: ty-arrive 0.6s var(--spring); }
+@keyframes ty-trail { from { opacity: 0.35; transform: scaleX(0.6); transform-origin: right; } to { opacity: 0.9; transform: scaleX(1); } }
+@keyframes ty-arrive { 0% { transform: translateY(-52%) scale(1); } 40% { transform: translateY(-75%) scale(1.12); } 100% { transform: translateY(-52%) scale(1); } }
+
+/* Time left */
+.ty-time { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--text-2); font-size: 13px; font-weight: 650; }
+.ty-time-label { font-variant-numeric: tabular-nums; min-width: 56px; }
+.ty-time-bar { flex: 1; height: 7px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.ty-time-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--grad-ok); transition: width 0.2s linear; }
+.ty-time.low { color: var(--danger-ink); }
+.ty-time.low .ty-time-bar > span { background: var(--grad-warm); animation: breathe 1s ease-in-out infinite; }
+
+/* Passage */
+.ty-passage-box {
+  position: relative; padding: 18px 20px; border-radius: var(--radius); background: var(--well);
+  border: 1px solid var(--line); transition: border-color 0.25s, box-shadow 0.25s; cursor: text;
+}
+.ty-type-card.live .ty-passage-box:focus-within { border-color: rgb(124 92 255 / 55%); box-shadow: var(--glow); }
+.ty-passage-box.has-error { border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.ty-passage-box.shake { animation: shake 0.35s var(--ease); }
+.ty-passage {
+  margin: 0; font-size: 21px; line-height: 1.75; letter-spacing: 0.005em; color: var(--muted);
+  overflow-wrap: break-word; user-select: none; -webkit-user-select: none;
+}
+.ty-word { white-space: nowrap; border-radius: 5px; transition: background 0.15s; }
+.ty-word.current { background: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ty-ch { position: relative; white-space: pre; }
+/* Spaces may wrap and hang at the line end, so wrapped lines never start with one. */
+.ty-ch.sp { white-space: pre-wrap; }
+.ty-ch.ok { color: var(--ok-ink); }
+.ty-ch.bad {
+  color: var(--danger); background: var(--danger-soft);
+  text-decoration: underline; text-decoration-color: var(--danger); text-decoration-thickness: 2px; text-underline-offset: 4px;
+}
+.ty-ch.todo { color: var(--text-2); }
+.ty-ch.caret::before {
+  content: ""; position: absolute; left: -1px; top: 0.18em; bottom: 0.12em; width: 2px; border-radius: 2px;
+  background: var(--accent-3); box-shadow: 0 0 8px var(--accent-3); animation: ty-blink 1.05s steps(1) infinite;
+}
+@keyframes ty-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+.ty-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* The real input sits invisibly over the passage, so a click or tap focuses it. */
+.ty-input {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; margin: 0;
+  font-size: 16px; cursor: text; color: transparent; background: transparent; caret-color: transparent;
+}
+.ty-input:read-only { cursor: default; }
+.ty-focus-hint {
+  position: absolute; right: 10px; bottom: 8px; display: inline-flex; align-items: center; gap: 6px; pointer-events: none;
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 650; color: var(--accent-ink);
+  background: var(--solid-2); border: 1px solid rgb(124 92 255 / 35%); box-shadow: var(--shadow-sm);
+  animation: breathe 2s ease-in-out infinite;
+}
+
+/* Countdown */
+.ty-countdown {
+  position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; border-radius: inherit; pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 62%, transparent); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.ty-countdown.go { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; animation: fade-in 0.2s reverse 0.6s forwards; }
+.ty-count {
+  font-family: var(--font-display); font-size: 92px; font-weight: 850; line-height: 1; letter-spacing: -0.04em;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 18px rgb(124 92 255 / 45%)); animation: ty-count 0.9s var(--spring) both;
+}
+.ty-count.small { font-size: 56px; }
+.ty-count.go { background: var(--grad-ok); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 6px 18px rgb(16 185 129 / 50%)); }
+.ty-count-sub { font-size: 14px; font-weight: 700; color: var(--text-2); letter-spacing: 0.06em; text-transform: uppercase; }
+@keyframes ty-count { 0% { opacity: 0; transform: scale(2.2); } 35% { opacity: 1; transform: scale(0.92); } 60% { transform: scale(1.04); } 100% { opacity: 1; transform: scale(1); } }
+
+/* Stats */
+.ty-stats, .ty-mine { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.ty-mine { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; }
+.ty-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line); min-width: 0;
+}
+.ty-stat-value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.2; white-space: nowrap; }
+.ty-stat.accent .ty-stat-value { color: var(--accent-ink); }
+.ty-stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+/* Results */
+.ty-results { animation: pop-in 0.5s var(--spring); }
+.ty-results-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ty-results-list li {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: var(--surface);
+  border: 1px solid var(--line); animation: rise-in 0.45s var(--ease) both;
+}
+.ty-results-list li.place-1 { background: linear-gradient(90deg, rgb(251 191 36 / 18%), var(--surface)); border-color: rgb(251 191 36 / 40%); }
+.ty-results-list li.place-2 { background: linear-gradient(90deg, rgb(148 163 184 / 18%), var(--surface)); }
+.ty-results-list li.place-3 { background: linear-gradient(90deg, rgb(217 119 6 / 14%), var(--surface)); }
+.ty-results-list li.me { box-shadow: inset 3px 0 0 var(--accent); }
+.ty-medal { min-width: 30px; text-align: center; font-size: 20px; font-weight: 800; color: var(--text-2); }
+.ty-result-name { flex: 1; min-width: 0; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ty-result-wpm { font-weight: 750; font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
+
+/* Side panel */
+.typing .player-row.racing { border-color: var(--line); }
+.ty-side-medal { font-size: 20px; line-height: 1; }
+
+@media (max-width: 600px) {
+  .ty-card { padding: 12px; }
+  .ty-passage-box { padding: 12px 12px; }
+  .ty-passage { font-size: 17.5px; line-height: 1.7; }
+  .ty-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .ty-mine { gap: 8px; }
+  .ty-stat-value { font-size: 17px; }
+  .ty-count { font-size: 72px; }
+  .ty-count.small { font-size: 46px; }
+  .ty-road { height: 30px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ty-car, .ty-road-fill { transition: none; }
+  .ty-ch.caret::before, .ty-car.moving::before, .ty-count { animation: none; }
+}

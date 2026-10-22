@@ -66,15 +66,20 @@ export function useStepped<T>(target: T, path: (from: T, to: T) => T[], stepMs =
   return shown;
 }
 
-/** Re-renders on an interval while `active` (for countdowns). Returns performance.now(). */
+/**
+ * Re-renders on an interval while `active` (for countdowns) and returns the current
+ * performance.now(). The time is read at render, never from the last tick: a render
+ * caused by something else (e.g. a server push that re-syncs a countdown) must not see
+ * a time from before that sync.
+ */
 export function useNow(active: boolean, intervalMs = 100): number {
-  const [now, setNow] = useState(() => performance.now());
+  const [, setTick] = useState(0);
   useEffect(() => {
     if (!active) return;
-    const timer = window.setInterval(() => setNow(performance.now()), intervalMs);
+    const timer = window.setInterval(() => setTick((t) => t + 1), intervalMs);
     return () => window.clearInterval(timer);
   }, [active, intervalMs]);
-  return active ? now : performance.now();
+  return performance.now();
 }
 
 /** True once per change of `key` for `ms`: handy for one-shot CSS animations. */

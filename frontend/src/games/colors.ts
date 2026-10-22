@@ -1,7 +1,7 @@
 import type { GameViewBase } from "../types";
 
 /** Per-seat token colours shared by board games. */
-export const SEAT_COLORS = ["#dc2626", "#2563eb", "#16a34a", "#d97706"];
+export const SEAT_COLORS = ["#dc2626", "#2563eb", "#16a34a", "#d97706", "#9333ea", "#0891b2", "#db2777", "#65a30d"];
 
 /** A player's colour, stable for the whole match (participants are in seat order). */
 export function seatColor(view: GameViewBase, playerId: string): string {

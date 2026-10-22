@@ -9,7 +9,7 @@ import { Icon, type IconName } from "../ui/Icon";
 import { MatchRow, MatchViewer } from "../ui/MatchViewer";
 import { play } from "../ui/sound";
 import { Tabs } from "../ui/Tabs";
-import { TimeControlPicker } from "../ui/TimeControlPicker";
+import { cleanOptions, defaultOptions, GameOptionsPicker, type RoomOptions } from "../ui/GameOptions";
 
 type Run = (method: string, path: string, body?: unknown) => Promise<boolean>;
 
@@ -305,18 +305,18 @@ function CreateRoom({ games, run }: { games: GameInfo[]; run: Run }) {
   const [gameType, setGameType] = useState("");
   const [name, setName] = useState("");
   const [maxPlayers, setMaxPlayers] = useState<number | null>(null);
-  const [timeControl, setTimeControl] = useState<string | null>(null);
+  const [options, setOptions] = useState<RoomOptions | null>(null);
   const game = games.find((g) => g.game_type === gameType) ?? games[0];
   if (!game) return <p className="muted">No games are available.</p>;
   const limit = maxPlayers !== null && maxPlayers >= game.min_players && maxPlayers <= game.max_players
     ? maxPlayers : game.max_players;
-  const isChess = game.game_type === "chess";
+  const chosen = options ?? defaultOptions(game.game_type);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const ok = await run("POST", "/api/admin/rooms", {
       game_type: game.game_type, name: name || game.name, max_players: limit,
-      ...(isChess && timeControl ? { options: { time_control: timeControl } } : {}),
+      options: cleanOptions(chosen),
     });
     if (ok) setName("");
   };
@@ -327,7 +327,7 @@ function CreateRoom({ games, run }: { games: GameInfo[]; run: Run }) {
         <GameIcon gameType={game.game_type} />
         <label className="field">
           <span>Game</span>
-          <select value={game.game_type} onChange={(e) => { setGameType(e.target.value); setMaxPlayers(null); }}>
+          <select value={game.game_type} onChange={(e) => { setGameType(e.target.value); setMaxPlayers(null); setOptions(null); }}>
             {games.map((g) => <option key={g.game_type} value={g.game_type}>{g.name}</option>)}
           </select>
         </label>
@@ -344,12 +344,9 @@ function CreateRoom({ games, run }: { games: GameInfo[]; run: Run }) {
         </label>
         <button className="create-btn"><Icon name="plus" size={16} />Create room</button>
       </div>
-      {isChess && (
-        <div className="field" style={{ marginTop: 14 }}>
-          <span>Time control</span>
-          <TimeControlPicker value={timeControl} onChange={setTimeControl} />
-        </div>
-      )}
+      <div className="create-room-options">
+        <GameOptionsPicker gameType={game.game_type} value={chosen} onChange={setOptions} />
+      </div>
     </form>
   );
 }

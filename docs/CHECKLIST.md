@@ -63,9 +63,14 @@ Each game has an engine with rule and randomized/fuzz tests, an API integration 
 - [x] Final standings (#1, #2, #3…) for every match, ranked by progress; leavers last (migration 0006)
 - [x] Players' own match history with placings and a read-only final position for each match
 
+## Phase 9: New games
+- [x] Business (2–6): 36-square board, buying, rent, even building, mortgages, jail, cards, debt and bankruptcy, trades, optional time limit (richest wins), net-worth standings
+- [x] Typing Race (2–8): server-timed countdown and race, server-side prefix checking and WPM, anti-paste speed limit, finish-order standings
+- [x] Room options picker per game (chess time control, passage length, game length) in host and guest forms
+
 ## Test results (latest run, 2026-10-23)
-- Backend: **540 passed, 4 skipped** (adds chess clock, standings, history and sound tests).
-- Browser E2E: `node e2e/run.mjs` → **60/60 checks**: all five games, a timed chess game, a
+- Backend: **642 passed, 4 skipped** (adds Business and Typing Race engines and API tests).
+- Browser E2E: `node e2e/run.mjs` → **80/80 checks**: all seven games, a timed chess game, a
   3-player game with standings, sound and theme controls, and every match's end screen
   for players and the host; zero requests to external hosts.
 

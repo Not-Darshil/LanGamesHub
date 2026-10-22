@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from app.games.base import GameEngine, GameInfo
 from app.games.battleship import BattleshipEngine
+from app.games.business import BusinessEngine
 from app.games.chess_game import ChessEngine
 from app.games.ludo import LudoEngine
 from app.games.snakes import SnakesEngine
+from app.games.typing_race import TypingRaceEngine
 from app.games.uno import UnoEngine
 
 GAMES: dict[str, GameEngine] = {}
@@ -30,3 +32,5 @@ register(SnakesEngine())
 register(LudoEngine())
 register(BattleshipEngine())
 register(ChessEngine())
+register(TypingRaceEngine())
+register(BusinessEngine())

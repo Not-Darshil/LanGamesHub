@@ -10,6 +10,9 @@ import pytest
 
 from app.games.registry import GAMES
 from tests.conftest import Browser, receive_until
+from tests.games.test_business import api_move as business_move
+from tests.games.test_typing_race import api_move as typing_move
+from tests.games.test_typing_race import skip_countdown
 
 
 def start_game(admin: Browser, players: list[Browser], game_type: str) -> int:
@@ -67,7 +70,8 @@ def uno_private(view: dict[str, Any]) -> list[Any]:
 
 MOVES: dict[str, Callable[[dict[str, Any]], dict[str, Any] | None]] = {
     "uno": uno_move, "snakes": snakes_move, "ludo": ludo_move,
-    "battleship": battleship_move, "chess": chess_move}
+    "battleship": battleship_move, "chess": chess_move, "typing": typing_move,
+    "business": business_move}
 PRIVATE: dict[str, Callable[[dict[str, Any]], list[Any]]] = {"uno": uno_private}
 
 
@@ -76,7 +80,7 @@ def test_every_registered_game_is_covered() -> None:
 
 
 @pytest.mark.parametrize("game_type", sorted(MOVES))
-def test_game_plays_through_api(game_type: str, admin: Browser,
+def test_game_plays_through_api(game_type: str, admin: Browser, monkeypatch: pytest.MonkeyPatch,
                                 approved_player: Callable[[str], Browser]) -> None:
     a, b = approved_player("Alpha"), approved_player("Beta")
     with ExitStack() as stack:
@@ -84,6 +88,8 @@ def test_game_plays_through_api(game_type: str, admin: Browser,
         for ws in sockets:
             ws.receive_json()
         room_id = start_game(admin, [a, b], game_type)
+        if game_type == "typing":
+            skip_countdown(monkeypatch, GAMES["typing"])  # race in fast-forward
         views = [receive_until(ws, lambda m: m.get("game") is not None)["game"] for ws in sockets]
 
         # Hidden information: neither player's private items appear in the other's view.

@@ -6,6 +6,8 @@ const META: Record<string, GameMeta> = {
   chess: { icon: "♞", gradient: "linear-gradient(135deg, #64748b, #1e293b)", tagline: "The classic. Now with bullet to classical clocks." },
   ludo: { icon: "🎲", gradient: "linear-gradient(135deg, #22c55e, #3b82f6)", tagline: "Race your four tokens home. Sixes roll again." },
   snakes: { icon: "🐍", gradient: "linear-gradient(135deg, #84cc16, #f59e0b)", tagline: "Climb ladders, dodge snakes, land on 100." },
+  business: { icon: "🏙️", gradient: "linear-gradient(135deg, #f59e0b, #10b981)", tagline: "Buy cities, build hotels, bankrupt your friends." },
+  typing: { icon: "⌨️", gradient: "linear-gradient(135deg, #06b6d4, #8b5cf6)", tagline: "Race everyone to the end of the passage." },
   battleship: { icon: "⚓", gradient: "linear-gradient(135deg, #0ea5e9, #6366f1)", tagline: "Hide your fleet. Hunt theirs. Sink them all." },
 };
 
