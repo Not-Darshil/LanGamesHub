@@ -14,6 +14,7 @@ remote font, external login, or Node.js is needed on the host or the guest PCs.
 1) Business (property trading with Indian cities; optional time limit)
 1) Typing Race (2–8 players, server-timed)
 
+Every room has a chat with emoji reactions, which the host can switch off.
 Rules for each game are documented in [docs/games/](docs/games/). The server enforces
 every rule; browsers only send intents ("play card 17") and never game state.
 

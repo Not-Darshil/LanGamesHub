@@ -15,6 +15,7 @@ from app.models.rooms import (
     MatchResult,
     Room,
     RoomMember,
+    RoomMessage,
     RoomStatus,
 )
 
@@ -29,6 +30,7 @@ __all__ = [
     "PlayerSession",
     "Room",
     "RoomMember",
+    "RoomMessage",
     "RoomStatus",
     "ScreenVisibility",
     "SessionStatus",

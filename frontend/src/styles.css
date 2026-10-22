@@ -733,3 +733,82 @@ details.ended summary { display: inline-flex; align-items: center; gap: 6px; fon
 .lobby-tabs { margin: 24px 0 6px; }
 .lobby-tabs + .tab-panel > .stat-grid { margin-top: 14px; }
 .create-room-options:not(:empty) { margin-top: 14px; }
+
+/* ---------- Room chat and reactions ---------- */
+.chat-dock { position: fixed; z-index: 800; left: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; max-width: calc(100vw - 40px); }
+.chat-bar { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 999px; background: var(--solid); border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
+.quick-reactions { display: flex; gap: 2px; }
+.quick-reactions button, .chat-reactions button {
+  width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; font-size: 19px; line-height: 1;
+  background: transparent; box-shadow: none; transition: transform 0.18s var(--spring), background 0.2s;
+}
+.quick-reactions button:hover:not(:disabled), .chat-reactions button:hover:not(:disabled) { background: var(--surface-3); transform: scale(1.25) translateY(-2px); box-shadow: none; filter: none; }
+.quick-reactions button:active:not(:disabled), .chat-reactions button:active:not(:disabled) { transform: scale(0.9); }
+.chat-toggle { position: relative; min-height: 36px; padding: 6px 14px; border-radius: 999px; }
+.chat-toggle.active { background: var(--surface-3); color: var(--text); box-shadow: none; }
+.chat-unread {
+  position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800; background: var(--danger); color: #fff;
+  box-shadow: 0 0 0 3px var(--solid); animation: pop-in 0.3s var(--spring);
+}
+.chat-preview {
+  display: flex; align-items: center; gap: 8px; max-width: 320px; padding: 8px 14px 8px 8px; border-radius: 16px 16px 16px 4px;
+  background: var(--solid); color: var(--text); border: 1px solid var(--line-strong); box-shadow: var(--shadow); font-weight: 500;
+  white-space: nowrap; animation: toast-in 0.35s var(--spring);
+}
+.chat-preview > span { overflow: hidden; text-overflow: ellipsis; }
+.chat-preview:hover:not(:disabled) { background: var(--solid-2); box-shadow: var(--shadow); filter: none; }
+.chat-panel {
+  position: relative; width: min(370px, calc(100vw - 40px)); height: min(500px, calc(100vh - 150px)); display: flex; flex-direction: column;
+  background: var(--solid); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  overflow: hidden; animation: chat-in 0.35s var(--spring); transform-origin: bottom left;
+}
+@keyframes chat-in { from { opacity: 0; transform: translateY(16px) scale(0.94); } to { opacity: 1; transform: none; } }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; border-bottom: 1px solid var(--line); }
+.chat-head strong { display: inline-flex; align-items: center; gap: 8px; flex: 1; }
+.chat-list { list-style: none; margin: 0; padding: 12px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.chat-empty { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+.chat-empty span { font-size: 30px; animation: float 3s ease-in-out infinite; }
+.chat-msg { display: flex; align-items: flex-end; gap: 8px; margin-top: 8px; animation: rise-in 0.3s var(--ease); }
+.chat-msg.grouped { margin-top: 0; padding-left: 34px; }
+.chat-msg.mine { justify-content: flex-end; padding-left: 40px; }
+.chat-msg:not(.mine) { padding-right: 40px; }
+.chat-bubble-wrap { display: flex; flex-direction: column; min-width: 0; }
+.chat-msg.mine .chat-bubble-wrap { align-items: flex-end; }
+.chat-name { font-size: 11.5px; font-weight: 700; color: var(--muted); margin: 0 0 2px 4px; }
+.chat-bubble {
+  display: inline-block; padding: 7px 12px; border-radius: 16px 16px 16px 5px; background: var(--surface-2); border: 1px solid var(--line);
+  font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.chat-msg.mine .chat-bubble { background: var(--grad); color: #fff; border-color: transparent; border-radius: 16px 16px 5px 16px; }
+.chat-reactions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0; padding: 6px 8px; border-top: 1px solid var(--line); }
+.chat-reactions button { width: 32px; height: 32px; min-height: 32px; font-size: 17px; }
+.chat-form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+.chat-form input { flex: 1; border-radius: 999px; padding: 9px 14px; }
+.chat-form button { width: 40px; padding: 0; border-radius: 50%; }
+.chat-form .send-icon { transform: rotate(180deg); }
+.chat-count { position: absolute; right: 64px; bottom: 22px; font-size: 11px; color: var(--muted); }
+.reaction-layer { position: fixed; inset: 0; z-index: 850; pointer-events: none; overflow: hidden; }
+.reaction-float {
+  position: absolute; bottom: 70px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  animation: reaction-rise 3s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.reaction-emoji { font-size: 44px; line-height: 1; filter: drop-shadow(0 6px 10px rgb(0 0 0 / 30%)); animation: reaction-wobble 0.6s ease-in-out infinite alternate; }
+.reaction-name { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--solid); color: var(--text); border: 1px solid var(--line-strong); white-space: nowrap; }
+@keyframes reaction-rise {
+  0% { opacity: 0; transform: translate(0, 20px) scale(0.4); }
+  12% { opacity: 1; transform: translate(0, 0) scale(1.15); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--drift), -55vh) scale(0.9); }
+}
+@keyframes reaction-wobble { from { transform: rotate(-10deg); } to { transform: rotate(10deg); } }
+/* Keep the dock clear of page content on small screens. */
+.shell:has(.chat-dock) { padding-bottom: 96px; }
+@media (max-width: 560px) {
+  .chat-dock { left: 12px; bottom: 12px; }
+  .quick-reactions button:nth-child(n + 4) { display: none; }
+  .chat-toggle-label { display: none; }
+  .chat-dock.open { left: 0; right: 0; bottom: 0; max-width: none; }
+  .chat-dock.open .chat-panel { width: 100vw; height: 72vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .chat-dock.open .chat-bar { margin: 0 12px 12px; }
+}

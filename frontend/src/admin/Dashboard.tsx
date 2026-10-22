@@ -52,7 +52,7 @@ export function Dashboard({ state }: { state: AdminState }) {
       </div>
       <PendingQueue pending={state.pending} run={run} />
       <Rooms rooms={state.rooms} games={state.games} run={run} />
-      <Players players={state.players} mutedAll={!!state.sound_muted_all} run={run} />
+      <Players players={state.players} mutedAll={!!state.sound_muted_all} chatOn={state.chat_enabled !== false} run={run} />
       <div className="dash-two">
         <HostPlayer run={run} />
         <History state={state} />
@@ -159,7 +159,7 @@ function SoundCell({ player, mutedAll, run }: { player: AdminPlayer; mutedAll: b
   );
 }
 
-function Players({ players, mutedAll, run }: { players: AdminPlayer[]; mutedAll: boolean; run: Run }) {
+function Players({ players, mutedAll, chatOn, run }: { players: AdminPlayer[]; mutedAll: boolean; chatOn: boolean; run: Run }) {
   const { confirm } = useFeedback();
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -179,6 +179,11 @@ function Players({ players, mutedAll, run }: { players: AdminPlayer[]; mutedAll:
           <span className="pill" title="Online players whose browser has sound on and is not muted">
             <Icon name="volume" size={13} />{active.filter((p) => soundState(p, mutedAll) === "on").length} hearing sound
           </span>
+          <button className={`small ${chatOn ? "secondary" : "warm"}`} aria-pressed={!chatOn}
+            title="Room chat and emoji reactions for every guest"
+            onClick={() => run("PUT", "/api/admin/chat", { enabled: !chatOn })}>
+            <Icon name="mail" size={14} />{chatOn ? "Turn chat off" : "Turn chat on"}
+          </button>
           <button className={`small ${mutedAll ? "warm" : "secondary"}`} aria-pressed={mutedAll}
             onClick={() => run("PUT", "/api/admin/sound", { muted: !mutedAll })}>
             <Icon name={mutedAll ? "volume" : "volume-x"} size={14} />{mutedAll ? "Unmute everyone" : "Mute everyone"}

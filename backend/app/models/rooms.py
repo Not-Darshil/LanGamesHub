@@ -106,3 +106,18 @@ class MatchResult(Base):
     final_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class RoomMessage(Base):
+    """A chat line or an emoji reaction posted by a room member."""
+
+    __tablename__ = "room_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), index=True)
+    session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("player_sessions.id", ondelete="SET NULL"))
+    nickname: Mapped[str] = mapped_column(String(20))   # as it was when sent
+    kind: Mapped[str] = mapped_column(String(8))        # "text" or "reaction"
+    body: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

@@ -27,6 +27,8 @@ class AppContext:
     access_limiter: RateLimiter = field(init=False)
     login_limiter: RateLimiter = field(init=False)
     action_limiter: RateLimiter = field(init=False)
+    chat_limiter: RateLimiter = field(init=False)
+    reaction_limiter: RateLimiter = field(init=False)
     # Dice and shuffles use the OS CSPRNG so outcomes cannot be predicted by clients.
     rng: random.Random = field(default_factory=random.SystemRandom)
 
@@ -34,6 +36,9 @@ class AppContext:
         self.access_limiter = RateLimiter(self.settings.rate_limit_access_per_minute, 60)
         self.login_limiter = RateLimiter(self.settings.rate_limit_login_per_minute, 60)
         self.action_limiter = RateLimiter(self.settings.rate_limit_actions_per_second, 1)
+        # Chat is social, not gameplay: a few lines and reactions per few seconds is plenty.
+        self.chat_limiter = RateLimiter(5, 10)
+        self.reaction_limiter = RateLimiter(8, 5)
 
     def transaction(self, fn: Callable[[Session], T]) -> T:
         """Run ``fn`` in one committed transaction (rolled back on error)."""

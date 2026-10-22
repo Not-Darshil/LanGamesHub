@@ -214,6 +214,44 @@ async function soundAndThemeFlow(admin, players) {
   await alice.locator(".theme-toggle").click();
 }
 
+async function chatFlow(admin, players) {
+  const [alice, bob] = players;
+  const roomName = "E2E chat";
+  await admin.locator(".create-room select").first().selectOption("uno");
+  await admin.getByPlaceholder("Room name").fill(roomName);
+  await admin.getByRole("button", { name: "Create room" }).click();
+  for (const p of players) await p.locator(".room-card", { hasText: roomName }).getByRole("button", { name: "Join" }).click();
+
+  await alice.getByRole("button", { name: "Open chat" }).click();
+  await alice.getByLabel("Chat message").fill("good luck everyone 🍀");
+  await alice.getByRole("button", { name: "Send message" }).click();
+  await bob.locator(".chat-unread").waitFor();
+  await bob.locator(".chat-preview", { hasText: "good luck everyone" }).waitFor();
+  check("chat: new messages show an unread badge and preview", true);
+  await bob.getByRole("button", { name: "Open chat" }).click();
+  await bob.locator(".chat-bubble", { hasText: "good luck everyone 🍀" }).waitFor();
+  check("chat: room members see each other's messages", true);
+
+  await bob.getByRole("group", { name: "Quick reactions" }).getByRole("button", { name: "React 🎉" }).click();
+  await alice.locator(".reaction-float", { hasText: "Bob" }).waitFor();
+  check("reactions float up on everyone's screen", true);
+  await alice.waitForTimeout(700); // let the reaction rise into view for the screenshot
+  await alice.screenshot({ path: join(SHOTS, "chat.png") });
+
+  await admin.getByRole("button", { name: "Turn chat off" }).click();
+  await alice.getByText("Chat is off").waitFor();
+  check("host can turn chat off", (await bob.locator(".chat-panel").count()) === 0);
+  await admin.getByRole("button", { name: "Turn chat on" }).click();
+  await alice.getByRole("button", { name: "Open chat" }).waitFor();
+
+  for (const p of players) {
+    await p.getByRole("button", { name: "Leave" }).click();
+    await p.getByRole("heading", { name: "Lobby" }).waitFor();
+  }
+  await admin.locator(".room-card", { hasText: roomName }).getByRole("button", { name: "Remove" }).click();
+  await confirmDialog(admin);
+}
+
 async function historyFlow(admin, players, played) {
   const [alice] = players;
   await alice.getByRole("tab", { name: "My matches" }).click();
@@ -271,6 +309,7 @@ async function main() {
     check("guests approved and in lobby", true);
     await coreFlow(browser, admin, [alice, bob]);
     await soundAndThemeFlow(admin, [alice, bob]);
+    await chatFlow(admin, [alice, bob]);
     let carol = null;
     await alice.screenshot({ path: join(SHOTS, "lobby.png"), fullPage: true });
     for (const game of games) {

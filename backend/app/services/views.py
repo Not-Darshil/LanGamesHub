@@ -28,7 +28,7 @@ from app.models import (
     SessionStatus,
 )
 from app.realtime.hub import CLOSE_FORBIDDEN, CLOSE_UNAUTHENTICATED, PlayerPush, Snapshot
-from app.services import settings_store
+from app.services import chat, settings_store
 from app.services.errors import NotFound
 from app.services.players import EXPIRED, effective_status
 from app.services.rooms import participant_names, player_key
@@ -123,6 +123,9 @@ class _Loaded:
                            key=lambda r: (r.status in ACTIVE_STATUSES, r.finished_at or now)):
             for member in room.members:
                 self.room_of[member.session_id] = room
+        self.chat_enabled = chat.chat_enabled(db)
+        self.chat = chat.recent(db, sorted({r.id for r in self.room_of.values()})) \
+            if self.chat_enabled else {}
         self.results: dict[int, MatchResult] = {
             r.room_id: r for r in db.scalars(
                 select(MatchResult).where(MatchResult.room_id.in_(list(self.rooms)))
@@ -183,6 +186,8 @@ def player_view(loaded: _Loaded, session: PlayerSession) -> dict[str, Any]:
             "status_reason": room.status_reason,
             "result": loaded.result_view(room),
             "awaiting": loaded.awaiting(room),
+            "chat_enabled": loaded.chat_enabled,
+            "chat": loaded.chat.get(room.id, {"messages": [], "reactions": []}),
         }
         engine = get_engine(room.game_type)
         if engine is not None and room.game_state is not None:
@@ -287,7 +292,8 @@ def _admin_view(db: Session, loaded: _Loaded) -> dict[str, Any]:
     history = [match_summary(m) for m in db.scalars(
         select(MatchResult).order_by(MatchResult.id.desc()).limit(60))]
     return {"pending": pending, "players": player_rows, "rooms": rooms,
-            "games": games_view(), "history": history, "sound_muted_all": loaded.mute_all}
+            "games": games_view(), "history": history, "sound_muted_all": loaded.mute_all,
+            "chat_enabled": loaded.chat_enabled}
 
 
 # -- match history and replays ---------------------------------------------------------

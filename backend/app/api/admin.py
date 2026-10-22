@@ -20,7 +20,7 @@ from app.api.deps import (
 )
 from app.models import AdminSession, AdminUser, ScreenVisibility
 from app.realtime.hub import CLOSE_FORBIDDEN, CLOSE_KICKED
-from app.services import admin_auth, players, rooms, settings_store
+from app.services import admin_auth, chat, players, rooms, settings_store
 from app.services.errors import ServiceError
 from app.services.views import build_admin_view, match_detail, session_view
 
@@ -54,6 +54,10 @@ class ScreenRequest(BaseModel):
 
 class MuteRequest(BaseModel):
     muted: bool
+
+
+class ChatSettingRequest(BaseModel):
+    enabled: bool
 
 
 class InvalidCredentials(ServiceError):
@@ -162,6 +166,16 @@ async def mute_everyone(body: MuteRequest, request: Request, _: int = Depends(re
     await ctx.run(lambda db: settings_store.put(db, settings_store.MUTE_ALL_SOUND, body.muted))
     await ctx.hub.flush()
     return {"muted": body.muted}
+
+
+@router.put("/chat")
+async def set_chat(body: ChatSettingRequest, request: Request,
+                   _: int = Depends(require_admin)) -> dict:
+    """Turn room chat and reactions on or off for everyone."""
+    ctx = get_ctx(request)
+    await ctx.run(lambda db: settings_store.put(db, chat.CHAT_ENABLED, body.enabled))
+    await ctx.hub.flush()
+    return {"enabled": body.enabled}
 
 
 @router.put("/players/{session_id}/sound")

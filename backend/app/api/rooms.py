@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.access import TooManyRequests
 from app.api.deps import get_ctx, require_player
 from app.models import PlayerSession
-from app.services import rooms
+from app.services import chat, rooms
 from app.services.views import build_player_view, match_detail, player_history
 
 router = APIRouter(prefix="/api", tags=["rooms"])
@@ -26,6 +26,14 @@ class CreateRoomRequest(BaseModel):
 
 class ReadyRequest(BaseModel):
     ready: bool
+
+
+class ChatRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class ReactionRequest(BaseModel):
+    emoji: str = Field(min_length=1, max_length=16)
 
 
 class ActionRequest(BaseModel):
@@ -111,3 +119,28 @@ async def history_detail(match_id: int, request: Request,
     """One finished match, with the final position as this player saw it."""
     ctx = get_ctx(request)
     return await ctx.run(lambda db: match_detail(db, match_id, session_id))
+
+
+@router.post("/rooms/{room_id}/chat", status_code=201)
+async def send_chat(room_id: int, body: ChatRequest, request: Request,
+                    session_id: int = Depends(require_player)) -> dict:
+    """Post a chat line to a room you are in."""
+    ctx = get_ctx(request)
+    if not ctx.chat_limiter.allow(str(session_id)):
+        raise TooManyRequests("You're sending messages too fast")
+    message_id = await ctx.run(lambda db: chat.post(db, session_id, room_id, "text", body.text).id)
+    ctx.hub.notify()
+    return {"id": message_id}
+
+
+@router.post("/rooms/{room_id}/react", status_code=201)
+async def send_reaction(room_id: int, body: ReactionRequest, request: Request,
+                        session_id: int = Depends(require_player)) -> dict:
+    """Send an emoji reaction (one of a fixed set) to everyone in your room."""
+    ctx = get_ctx(request)
+    if not ctx.reaction_limiter.allow(str(session_id)):
+        raise TooManyRequests("Easy on the reactions")
+    message_id = await ctx.run(
+        lambda db: chat.post(db, session_id, room_id, "reaction", body.emoji).id)
+    ctx.hub.notify()
+    return {"id": message_id}

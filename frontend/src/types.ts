@@ -64,11 +64,30 @@ export interface MatchResultInfo {
   standings?: Standing[];
 }
 
+export interface ChatMessage {
+  id: number;
+  /** Sender's player id ("" if their session is gone). */
+  from: string;
+  nickname: string;
+  text: string;
+  at: string;
+}
+
+export interface ChatReaction {
+  id: number;
+  from: string;
+  nickname: string;
+  emoji: string;
+  at: string;
+}
+
 export interface RoomDetail extends RoomSummary {
   members: Member[];
   status_reason: string | null;
   result: MatchResultInfo | null;
   awaiting: string[];
+  chat_enabled?: boolean;
+  chat?: { messages: ChatMessage[]; reactions: ChatReaction[] };
 }
 
 /** Common fields the server adds to every engine's game view. */
@@ -135,4 +154,5 @@ export interface AdminState {
   games: GameInfo[];
   history: HistoryEntry[];
   sound_muted_all: boolean;
+  chat_enabled?: boolean;
 }

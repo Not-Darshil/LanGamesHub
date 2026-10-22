@@ -68,9 +68,13 @@ Each game has an engine with rule and randomized/fuzz tests, an API integration 
 - [x] Typing Race (2–8): server-timed countdown and race, server-side prefix checking and WPM, anti-paste speed limit, finish-order standings
 - [x] Room options picker per game (chess time control, passage length, game length) in host and guest forms
 
+## Phase 10: Room chat
+- [x] Chat and emoji reactions in every room (waiting room, game, results); floating reactions; unread badge and preview
+- [x] Members-only delivery, text cleaning, fixed emoji set, rate limits, host on/off switch (migration 0007)
+
 ## Test results (latest run, 2026-10-23)
-- Backend: **642 passed, 4 skipped** (adds Business and Typing Race engines and API tests).
-- Browser E2E: `node e2e/run.mjs` → **80/80 checks**: all seven games, a timed chess game, a
+- Backend: **649 passed, 4 skipped** (adds Business, Typing Race and room chat tests).
+- Browser E2E: `node e2e/run.mjs` → **84/84 checks**: all seven games, room chat and reactions, a timed chess game, a
   3-player game with standings, sound and theme controls, and every match's end screen
   for players and the host; zero requests to external hosts.
 

@@ -60,6 +60,16 @@ game actions. API request bodies are capped at 64 KB, WebSocket messages at 1 KB
 each session may hold at most 5 sockets. Pending requests expire. The dashboard flags
 requests from IP addresses that were rejected before.
 
+## Room chat
+
+Each room has a chat and emoji reactions. Only members of a room can post to it or
+receive its messages; the lobby, other rooms and hidden guests get nothing, and the host
+dashboard shows no message contents. Messages are plain text (control characters are
+stripped, 300 characters at most) and are rendered as text, never as HTML. Reactions are
+limited to a fixed set of emoji. Per-player limits: 5 messages per 10 seconds and 8
+reactions per 5 seconds. The host can turn chat off for everyone. Messages are stored
+with their room and deleted when the room is removed.
+
 ## Sound controls
 
 The host can mute sound effects for one guest or for everyone (including guests who join

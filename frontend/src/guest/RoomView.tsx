@@ -5,6 +5,7 @@ import "../games/all";
 import { statusLabel, statusTone } from "../labels";
 import type { GameViewBase, Member, RoomDetail, SessionInfo } from "../types";
 import { Avatar } from "../ui/Avatar";
+import { RoomChat } from "../ui/Chat";
 import { fireConfetti } from "../ui/confetti";
 import { useFeedback } from "../ui/Feedback";
 import { GameIcon } from "../ui/games";
@@ -140,6 +141,7 @@ export function RoomView({
         ) : (
           <p className="error">This game cannot be displayed.</p>
         ))}
+      <RoomChat room={room} meId={me.id} />
     </section>
   );
 }
