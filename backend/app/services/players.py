@@ -232,3 +232,25 @@ def set_screen_visibility(db: Session, session_id: int, visibility: ScreenVisibi
     session.screen_visibility = visibility
     logger.info("Screen for player session %s set to %s", session.id, visibility.value)
     return True
+
+
+def report_sound(db: Session, session_id: int, enabled: bool) -> bool:
+    """The guest's browser reports whether its sound effects are on. Returns True if changed."""
+    session = authorize(get_for_update(db, session_id))
+    if session.sound_enabled == enabled:
+        return False
+    session.sound_enabled = enabled
+    return True
+
+
+def set_sound_muted(db: Session, session_id: int, muted: bool) -> bool:
+    """Host mutes or unmutes one guest's sound effects. Idempotent; True if changed."""
+    session = get_for_update(db, session_id)
+    if effective_status(session) != SessionStatus.APPROVED:
+        raise Conflict("Only approved, active players can be muted or unmuted")
+    if session.sound_muted_by_host == muted:
+        return False
+    session.sound_muted_by_host = muted
+    logger.info("Sound for player session %s %s by the host", session.id,
+                "muted" if muted else "unmuted")
+    return True

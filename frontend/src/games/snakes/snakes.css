@@ -1,23 +1,157 @@
-.sl-board-wrap { flex: 1 1 480px; max-width: 560px; }
-.sl-board {
-  position: relative; display: grid; grid-template-columns: repeat(10, 1fr);
-  grid-template-rows: repeat(10, 1fr); aspect-ratio: 1; border: 2px solid #374151;
-  border-radius: 6px; overflow: hidden; background: #fefce8;
+/* ---------- Snakes and Ladders ---------- */
+.snakes .sl-main { display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 0; }
+
+.sl-frame {
+  width: min(100%, 720px); padding: clamp(6px, 1.6vw, 14px); border-radius: var(--radius-xl);
+  background: linear-gradient(145deg, #2a2350, #141a33 55%, #1b2a3f);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgb(255 255 255 / 10%), 0 0 60px -20px rgb(124 92 255 / 45%);
 }
-.sl-cell { position: relative; border: 1px solid #fde68a; padding: 2px; }
-.sl-dark { background: #fef3c7; }
-.sl-num { font-size: 10px; color: #92400e; }
-.sl-tokens { position: absolute; inset: 14px 2px 2px; display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-end; justify-content: center; z-index: 2; }
-.sl-token { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 40%); margin-right: 4px; vertical-align: middle; }
-.sl-tokens .sl-token { margin: 0; }
-.sl-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-.sl-ladder { stroke: #15803d; stroke-width: 1.6; stroke-dasharray: 1.2 0.8; stroke-linecap: round; opacity: 0.8; }
-.sl-snake { stroke: #b91c1c; stroke-width: 1.4; fill: none; stroke-linecap: round; opacity: 0.75; }
-.sl-side { flex: 1 1 260px; }
-.sl-legend li { margin: 4px 0; list-style: none; }
-.sl-legend { padding: 0; }
-.sl-turn { font-weight: 700; }
-.sl-last { display: flex; align-items: center; gap: 8px; }
-.sl-die { font-size: 34px; line-height: 1; }
-.small-print { font-size: 13px; }
-.sl-snake-head { fill: #7f1d1d; opacity: 0.9; }
+
+.sl-board {
+  position: relative; aspect-ratio: 1; width: 100%; container-type: inline-size;
+  border-radius: calc(var(--radius-xl) - 10px);
+}
+
+/* Tiles: alternating translucent whites over a diagonal pastel gradient. */
+.sl-tiles {
+  position: absolute; inset: 0; display: grid; grid-template: repeat(10, 1fr) / repeat(10, 1fr);
+  border-radius: inherit; overflow: hidden;
+  background: linear-gradient(135deg, #fde68a 0%, #fbcfe8 30%, #ddd6fe 55%, #bae6fd 78%, #bbf7d0 100%);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%), inset 0 0 40px rgb(255 255 255 / 30%);
+}
+.sl-cell {
+  position: relative; background: rgb(255 255 255 / 52%);
+  box-shadow: inset 0 0 0 0.5px rgb(30 27 75 / 9%);
+  transition: background 0.4s var(--ease);
+}
+.sl-cell.alt { background: rgb(255 255 255 / 14%); }
+.sl-num {
+  position: absolute; top: 5%; left: 7%; font-size: clamp(7px, 2.05cqi, 13px); font-weight: 700;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: rgb(30 27 75 / 62%);
+}
+.sl-cell.start { background: linear-gradient(135deg, rgb(52 211 153 / 55%), rgb(34 211 238 / 40%)); }
+.sl-tag {
+  position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%);
+  font-size: clamp(6px, 1.5cqi, 10px); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #065f46;
+}
+.sl-cell.goal {
+  background: radial-gradient(circle at 50% 40%, #fff7cc, #fcd34d 60%, #f59e0b);
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 70%), inset 0 0 14px rgb(180 83 9 / 45%);
+}
+.sl-cell.goal .sl-num { color: #78350f; }
+.sl-crown {
+  position: absolute; left: 50%; top: 58%; width: 52%; height: 52%; transform: translate(-50%, -50%);
+  color: #92400e; filter: drop-shadow(0 1px 1px rgb(255 255 255 / 70%));
+  animation: sl-crown 3s ease-in-out infinite;
+}
+
+/* Square highlights after a roll: landed square, then the jump destination. */
+.sl-cell.landed { animation: sl-land 1.5s var(--ease) var(--land-delay, 0ms) both; }
+.sl-cell.dest { animation: sl-land 1.5s var(--ease) var(--dest-delay, 0ms) both; }
+
+/* ---------- Ladders and snakes (SVG, viewBox 0–100) ---------- */
+.sl-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.sl-ladder, .sl-snake { transition: opacity 0.4s var(--ease); }
+.sl-overlay.has-hot .sl-ladder:not(.hot), .sl-overlay.has-hot .sl-snake:not(.hot) { opacity: 0.6; }
+.sl-rail { stroke: #8a5326; stroke-width: 1.05; stroke-linecap: round; }
+.sl-rail-hi { stroke: #e2a868; stroke-width: 0.4; stroke-linecap: round; opacity: 0.85; }
+.sl-rung { stroke: #b7793f; stroke-width: 0.75; stroke-linecap: round; }
+.sl-halo {
+  fill: none; stroke: #fffbe6; stroke-width: 6; stroke-linecap: round; opacity: 0;
+  animation: sl-halo 1.4s ease-in-out var(--land-delay, 0ms) 2 both;
+}
+.sl-snake-outline { fill: none; stroke-width: 3.1; stroke-linecap: round; }
+.sl-snake-body { fill: none; stroke-width: 2.35; stroke-linecap: round; }
+.sl-snake-scales { fill: none; stroke-width: 1.5; stroke-dasharray: 0.45 0.95; stroke-linecap: round; opacity: 0.28; }
+.sl-snake-shine { fill: none; stroke: #fff; stroke-width: 0.4; stroke-linecap: round; opacity: 0.35; }
+.sl-tongue {
+  fill: none; stroke: #e11d48; stroke-width: 0.3; stroke-linecap: round; stroke-linejoin: round;
+  transform-box: fill-box; transform-origin: left center; animation: sl-tongue 2.8s ease-in-out infinite;
+}
+.sl-snake:nth-of-type(2n) .sl-tongue { animation-delay: -1.1s; }
+.sl-snake:nth-of-type(3n) .sl-tongue { animation-delay: -2s; }
+
+/* ---------- Tokens ---------- */
+.sl-token-layer { position: absolute; inset: 0; pointer-events: none; }
+.sl-token {
+  --c: #6b7280; position: absolute; width: 6.4%; aspect-ratio: 1; transform: translate(-50%, -50%); z-index: 1;
+  transition: left 0.2s var(--ease), top 0.2s var(--ease); pointer-events: auto;
+}
+.sl-token.crowded { width: 5.4%; }
+.sl-token.turn { z-index: 3; }
+.sl-token.sliding { transition: none; z-index: 4; }
+.sl-token::after { /* ground shadow */
+  content: ""; position: absolute; left: 12%; right: 12%; bottom: -12%; height: 22%; border-radius: 50%;
+  background: radial-gradient(rgb(15 23 42 / 45%), transparent 70%); z-index: -1;
+}
+.sl-token.turn::before {
+  content: ""; position: absolute; inset: -22%; border-radius: 50%; border: 2px solid var(--c);
+  animation: sl-ring 1.6s ease-out infinite;
+}
+.sl-token-ball {
+  position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center;
+  font-size: clamp(7px, 2.3cqi, 15px); font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / 45%);
+  background:
+    radial-gradient(circle at 32% 26%, rgb(255 255 255 / 85%) 0 9%, rgb(255 255 255 / 0%) 24%),
+    radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 55%, #000));
+  border: 2px solid rgb(255 255 255 / 92%);
+  box-shadow: 0 3px 7px rgb(0 0 0 / 40%), inset 0 -2px 4px rgb(0 0 0 / 28%);
+  animation: sl-hop 0.24s var(--ease);
+}
+.sl-token.sliding .sl-token-ball { animation: none; transform: scale(1.12); transition: transform 0.2s; }
+
+/* ---------- Side panel ---------- */
+.sl-waiting { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; font-size: 13px; }
+.sl-waiting .pill { display: inline-flex; align-items: center; gap: 6px; }
+.sl-swatch {
+  --c: #6b7280; display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; flex: none;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 45%, #fff), var(--c) 60%);
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 15%), 0 0 10px -2px var(--c);
+}
+.sl-waiting .sl-swatch { margin-right: 0; }
+.sl-dice { min-height: 98px; }
+.sl-dice .dice-text { display: flex; flex-direction: column; gap: 3px; animation: fade-in 0.5s var(--ease) 0.45s both; }
+.sl-detail { font-weight: 600; }
+.sl-detail.ladder { color: var(--ok); }
+.sl-detail.snake { color: var(--danger); }
+.sl-hint { margin: -6px 0 0; font-size: 12px; text-align: center; animation: fade-in 0.3s; }
+.sl-progress { height: 4px; margin-top: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.sl-progress > span { display: block; height: 100%; border-radius: inherit; transition: width 0.8s var(--ease); box-shadow: 0 0 8px currentColor; }
+.sl-win-icon { color: var(--warn); animation: bounce-in 0.8s var(--spring); }
+.sl-legend { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: 13px; line-height: 1.45; }
+.sl-legend svg { flex: none; margin-top: 2px; color: var(--accent-3); }
+
+@media (pointer: coarse) { .sl-hint { display: none; } }
+
+@media (max-width: 520px) {
+  .sl-frame { border-radius: var(--radius-lg); }
+  .sl-board { border-radius: calc(var(--radius-lg) - 6px); }
+  .sl-token { width: 7.2%; }
+  .sl-token.crowded { width: 6%; }
+  .sl-token-ball { border-width: 1.5px; }
+}
+
+@keyframes sl-hop {
+  0% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-38%) scale(0.94, 1.06); }
+  80% { transform: translateY(0) scale(1.1, 0.9); }
+  100% { transform: none; }
+}
+@keyframes sl-ring { 0% { transform: scale(0.85); opacity: 0.9; } 100% { transform: scale(1.45); opacity: 0; } }
+@keyframes sl-land {
+  0% { background-color: transparent; box-shadow: inset 0 0 0 0 rgb(255 255 255 / 0%); }
+  20% { background-color: rgb(255 255 255 / 92%); box-shadow: inset 0 0 0 3px rgb(124 92 255 / 75%), 0 0 18px rgb(124 92 255 / 60%); }
+  100% { box-shadow: inset 0 0 0 2px rgb(124 92 255 / 0%); }
+}
+@keyframes sl-halo { 0%, 100% { opacity: 0; } 50% { opacity: 0.75; } }
+@keyframes sl-tongue { 0%, 70%, 100% { transform: scaleX(0.15); } 78%, 92% { transform: scaleX(1); } 85% { transform: scaleX(0.75); } }
+@keyframes sl-crown { 0%, 100% { transform: translate(-50%, -50%) rotate(-4deg); } 50% { transform: translate(-50%, -56%) rotate(4deg); } }
+
+/* ---------- Light theme ---------- */
+:root[data-theme="light"] .sl-frame {
+  background: linear-gradient(145deg, #ffffff, #e9e6f7 55%, #e4edf6);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgb(255 255 255 / 90%), 0 0 60px -24px rgb(124 92 255 / 35%);
+}
+:root[data-theme="light"] .sl-swatch { box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgb(15 23 42 / 14%), 0 0 8px -2px var(--c); }
+:root[data-theme="light"] .sl-legend svg { color: #0891b2; }

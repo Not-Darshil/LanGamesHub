@@ -1,50 +1,97 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, describeError } from "../api";
-import { statusLabel } from "../labels";
+import { statusLabel, statusTone } from "../labels";
 import type { AdminPlayer, AdminRoom, AdminState, GameInfo } from "../types";
+import { Avatar } from "../ui/Avatar";
+import { useFeedback } from "../ui/Feedback";
+import { GameIcon } from "../ui/games";
+import { Icon, type IconName } from "../ui/Icon";
+import { MatchRow, MatchViewer } from "../ui/MatchViewer";
+import { play } from "../ui/sound";
+import { Tabs } from "../ui/Tabs";
+import { cleanOptions, defaultOptions, GameOptionsPicker, type RoomOptions } from "../ui/GameOptions";
 
-/** Runs an admin call and surfaces failures in a shared error banner. */
-function useAction() {
-  const [error, setError] = useState<string | null>(null);
-  const run = async (method: string, path: string, body?: unknown) => {
-    setError(null);
+type Run = (method: string, path: string, body?: unknown) => Promise<boolean>;
+
+/** Runs an admin call; failures become an error toast. Resolves to success. */
+function useRun(): Run {
+  const { toast } = useFeedback();
+  return async (method, path, body) => {
     try {
       await api(method, path, body);
+      return true;
     } catch (err) {
-      setError(describeError(err));
+      toast(describeError(err), "error");
+      return false;
     }
   };
-  return { error, run, clear: () => setError(null) };
 }
 
 export function Dashboard({ state }: { state: AdminState }) {
-  const action = useAction();
+  const run = useRun();
+
+  // Chime when a new access request arrives.
+  const pendingCount = state.pending.length;
+  const previous = useRef(pendingCount);
+  useEffect(() => {
+    if (pendingCount > previous.current) play("notify");
+    previous.current = pendingCount;
+  }, [pendingCount]);
+
+  const online = state.players.filter((p) => p.status === "APPROVED" && p.online).length;
+  const live = state.rooms.filter((r) => r.status === "IN_PROGRESS").length;
+  const ready = state.rooms.filter((r) => r.status === "READY_TO_START").length;
+
   return (
     <>
-      {action.error && (
-        <p className="error banner-error" onClick={action.clear}>
-          {action.error} <span className="muted">(click to dismiss)</span>
-        </p>
-      )}
-      <PendingQueue pending={state.pending} run={action.run} />
-      <Players players={state.players} run={action.run} />
-      <Rooms rooms={state.rooms} games={state.games} run={action.run} />
-      <HostPlayer run={action.run} />
-      <History state={state} />
+      <div className="stat-grid">
+        <Stat icon="shield" label="Access requests" value={pendingCount} tone={pendingCount ? "warn" : ""} />
+        <Stat icon="users" label="Players online" value={online} tone="ok" />
+        <Stat icon="play" label="Ready to start" value={ready} tone={ready ? "ok" : ""} />
+        <Stat icon="gamepad" label="Live games" value={live} tone="accent" />
+      </div>
+      <PendingQueue pending={state.pending} run={run} />
+      <Rooms rooms={state.rooms} games={state.games} run={run} />
+      <Players players={state.players} mutedAll={!!state.sound_muted_all} run={run} />
+      <div className="dash-two">
+        <HostPlayer run={run} />
+        <History state={state} />
+      </div>
     </>
   );
 }
 
-type Run = (method: string, path: string, body?: unknown) => Promise<void>;
+function Stat({ icon, label, value, tone }: { icon: IconName; label: string; value: number; tone: string }) {
+  return (
+    <div className={`stat ${tone}`}>
+      <span className="stat-icon"><Icon name={icon} size={20} /></span>
+      <div>
+        <strong key={value}>{value}</strong>
+        <span>{label}</span>
+      </div>
+    </div>
+  );
+}
 
 function PendingQueue({ pending, run }: { pending: AdminPlayer[]; run: Run }) {
   return (
-    <section className="panel">
-      <h2>
-        Access requests {pending.length > 0 && <span className="count">{pending.length}</span>}
-      </h2>
+    <section className={`panel${pending.length ? " attention" : ""}`}>
+      <div className="panel-head">
+        <h2>
+          Access requests {pending.length > 0 && <span className="count">{pending.length}</span>}
+        </h2>
+        {pending.length > 1 && (
+          <button className="success small" onClick={async () => {
+            for (const p of pending) await run("POST", `/api/admin/players/${p.id}/approve`);
+          }}><Icon name="check" size={14} />Approve all</button>
+        )}
+      </div>
       {pending.length === 0 ? (
-        <p className="muted">No one is waiting.</p>
+        <div className="empty">
+          <span className="empty-icon"><Icon name="shield" size={24} /></span>
+          <strong>No one is waiting</strong>
+          <span>Guests who enter the room password appear here for approval.</span>
+        </div>
       ) : (
         <table>
           <thead>
@@ -52,14 +99,21 @@ function PendingQueue({ pending, run }: { pending: AdminPlayer[]; run: Run }) {
           </thead>
           <tbody>
             {pending.map((p) => (
-              <tr key={p.id}>
-                <td>#{p.id}{p.prior_rejections ? <span className="warn"> · {p.prior_rejections} earlier rejection(s) from this IP</span> : null}</td>
+              <tr key={p.id} className="row-new">
+                <td>
+                  <strong>#{p.id}</strong>
+                  {p.prior_rejections ? <div className="warn small-print">{p.prior_rejections} earlier rejection(s) from this IP</div> : null}
+                </td>
                 <td><code>{p.ip_address}</code></td>
-                <td className="ua">{p.user_agent}</td>
-                <td>{new Date(p.created_at).toLocaleTimeString()}</td>
+                <td className="ua" title={p.user_agent}>{browserName(p.user_agent)}</td>
+                <td className="muted">{new Date(p.created_at).toLocaleTimeString()}</td>
                 <td className="actions">
-                  <button onClick={() => run("POST", `/api/admin/players/${p.id}/approve`)}>Approve</button>
-                  <button className="danger" onClick={() => run("POST", `/api/admin/players/${p.id}/reject`)}>Reject</button>
+                  <button className="success small" onClick={() => run("POST", `/api/admin/players/${p.id}/approve`)}>
+                    <Icon name="check" size={14} />Approve
+                  </button>
+                  <button className="danger small" onClick={() => run("POST", `/api/admin/players/${p.id}/reject`)}>
+                    <Icon name="x" size={14} />Reject
+                  </button>
                 </td>
               </tr>
             ))}
@@ -70,7 +124,43 @@ function PendingQueue({ pending, run }: { pending: AdminPlayer[]; run: Run }) {
   );
 }
 
-function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
+function browserName(ua: string): string {
+  const os = /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Linux/.test(ua) ? "Linux" : "";
+  const browser = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Browser";
+  return os ? `${browser} on ${os}` : ua || "Unknown";
+}
+
+type SoundState = "on" | "off" | "host" | "unknown" | "offline";
+
+function soundState(p: AdminPlayer, mutedAll: boolean): SoundState {
+  if (mutedAll || p.sound_muted_by_host) return "host";
+  if (!p.online) return "offline";
+  if (p.sound_enabled == null) return "unknown";
+  return p.sound_enabled ? "on" : "off";
+}
+
+function SoundCell({ player, mutedAll, run }: { player: AdminPlayer; mutedAll: boolean; run: Run }) {
+  const state = soundState(player, mutedAll);
+  const label = { on: "Sound on", off: "Muted by guest", host: "Muted by host", unknown: "Not reported", offline: "Offline" }[state];
+  return (
+    <span className="row sound-cell">
+      <span className={`sound-status ${state}`} title={label}>
+        {state === "on" ? <span className="eq" aria-hidden="true"><i /><i /><i /></span> : <Icon name="volume-x" size={14} />}
+        {label}
+      </span>
+      {!mutedAll && (
+        <button className="ghost icon-btn small" title={player.sound_muted_by_host ? "Unmute this player" : "Mute this player"}
+          aria-label={player.sound_muted_by_host ? `Unmute ${player.nickname ?? "player"}` : `Mute ${player.nickname ?? "player"}`}
+          onClick={() => run("PUT", `/api/admin/players/${player.id}/sound`, { muted: !player.sound_muted_by_host })}>
+          <Icon name={player.sound_muted_by_host ? "volume" : "volume-x"} size={15} />
+        </button>
+      )}
+    </span>
+  );
+}
+
+function Players({ players, mutedAll, run }: { players: AdminPlayer[]; mutedAll: boolean; run: Run }) {
+  const { confirm } = useFeedback();
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const active = players.filter((p) => p.status === "APPROVED");
@@ -78,19 +168,33 @@ function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
 
   const rename = async (event: FormEvent, id: number) => {
     event.preventDefault();
-    await run("PUT", `/api/admin/players/${id}/nickname`, { nickname: draft });
-    setEditing(null);
+    if (await run("PUT", `/api/admin/players/${id}/nickname`, { nickname: draft })) setEditing(null);
   };
 
   return (
     <section className="panel">
-      <h2>Players</h2>
+      <div className="panel-head">
+        <h2>Players <span className="pill">{active.length}</span></h2>
+        <span className="row">
+          <span className="pill" title="Online players whose browser has sound on and is not muted">
+            <Icon name="volume" size={13} />{active.filter((p) => soundState(p, mutedAll) === "on").length} hearing sound
+          </span>
+          <button className={`small ${mutedAll ? "warm" : "secondary"}`} aria-pressed={mutedAll}
+            onClick={() => run("PUT", "/api/admin/sound", { muted: !mutedAll })}>
+            <Icon name={mutedAll ? "volume" : "volume-x"} size={14} />{mutedAll ? "Unmute everyone" : "Mute everyone"}
+          </button>
+        </span>
+      </div>
+      {mutedAll && <p className="banner"><Icon name="volume-x" size={16} />Sound is muted for every guest, including anyone who joins later.</p>}
       {active.length === 0 ? (
-        <p className="muted">No approved players yet.</p>
+        <div className="empty">
+          <span className="empty-icon"><Icon name="users" size={24} /></span>
+          <strong>No approved players yet</strong>
+        </div>
       ) : (
         <table>
           <thead>
-            <tr><th>Nickname</th><th>IP address</th><th>Connection</th><th>Room</th><th>Screen</th><th /></tr>
+            <tr><th>Nickname</th><th>IP address</th><th>Connection</th><th>Room</th><th>Sound</th><th>Screen</th><th /></tr>
           </thead>
           <tbody>
             {active.map((p) => (
@@ -98,43 +202,51 @@ function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
                 <td>
                   {editing === p.id ? (
                     <form className="row" onSubmit={(e) => rename(e, p.id)}>
-                      <input autoFocus maxLength={20} value={draft} onChange={(e) => setDraft(e.target.value)} />
+                      <input autoFocus maxLength={20} value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: 140 }} />
                       <button className="small">Save</button>
                       <button type="button" className="secondary small" onClick={() => setEditing(null)}>Cancel</button>
                     </form>
                   ) : (
-                    <>
-                      {p.nickname ?? <span className="muted">(choosing…)</span>}
-                      {p.is_host && <span className="badge">host</span>}{" "}
-                      <button className="link" onClick={() => { setEditing(p.id); setDraft(p.nickname ?? ""); }}>
-                        rename
-                      </button>
-                    </>
+                    <span className="row">
+                      <Avatar name={p.nickname ?? "?"} size={30} online={p.online} />
+                      <span>
+                        {p.nickname ?? <span className="muted">(choosing…)</span>}
+                        {p.is_host && <span className="badge">host</span>}{" "}
+                        <button className="link" onClick={() => { setEditing(p.id); setDraft(p.nickname ?? ""); }}>
+                          rename
+                        </button>
+                      </span>
+                    </span>
                   )}
                 </td>
                 <td><code>{p.ip_address}</code></td>
-                <td><span className={`dot ${p.online ? "dot-on" : "dot-off"}`} />{p.online ? "online" : "offline"}</td>
-                <td>{p.room ? `${p.room.name} (${statusLabel(p.room.status)})` : <span className="muted">lobby</span>}</td>
+                <td><span className={`pill ${p.online ? "ok" : ""}`}><span className={`dot ${p.online ? "dot-on" : "dot-off"}`} style={{ marginRight: 0 }} />{p.online ? "online" : "offline"}</span></td>
+                <td>{p.room ? <span>{p.room.name} <span className="muted small-print">({statusLabel(p.room.status)})</span></span> : <span className="muted">lobby</span>}</td>
+                <td><SoundCell player={p} mutedAll={mutedAll} run={run} /></td>
                 <td>
                   {p.screen === "HIDDEN" ? (
-                    <>
-                      <span className="badge badge-warn">hidden</span>{" "}
+                    <span className="row">
+                      <span className="badge badge-warn">hidden</span>
                       <button className="small" onClick={() => run("PUT", `/api/admin/players/${p.id}/screen`, { visibility: "VISIBLE" })}>
-                        Restore Screen
+                        <Icon name="eye" size={14} />Restore Screen
                       </button>
-                    </>
+                    </span>
                   ) : (
                     <button className="small secondary" onClick={() => run("PUT", `/api/admin/players/${p.id}/screen`, { visibility: "HIDDEN" })}>
-                      Hide Screen
+                      <Icon name="eye-off" size={14} />Hide Screen
                     </button>
                   )}
                 </td>
                 <td className="actions">
                   <button className="secondary small" disabled={!p.online}
-                    onClick={() => run("POST", `/api/admin/players/${p.id}/disconnect`)}>Disconnect</button>
-                  <button className="danger small" onClick={() => {
-                    if (window.confirm(`Revoke ${p.nickname ?? "this player"}'s access? They will be removed from any room.`))
-                      void run("POST", `/api/admin/players/${p.id}/revoke`);
+                    onClick={() => run("POST", `/api/admin/players/${p.id}/disconnect`)}><Icon name="plug" size={14} />Disconnect</button>
+                  <button className="danger small" onClick={async () => {
+                    const ok = await confirm({
+                      title: `Revoke ${p.nickname ?? "this player"}?`,
+                      body: "They lose access immediately and are removed from any room. A game in progress counts as a forfeit.",
+                      confirmLabel: "Revoke access", danger: true,
+                    });
+                    if (ok) void run("POST", `/api/admin/players/${p.id}/revoke`);
                   }}>Revoke</button>
                 </td>
               </tr>
@@ -143,8 +255,8 @@ function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
         </table>
       )}
       {ended.length > 0 && (
-        <details>
-          <summary className="muted">Rejected / revoked ({ended.length})</summary>
+        <details className="ended">
+          <summary className="muted"><Icon name="chevron-down" size={14} /> Rejected / revoked ({ended.length})</summary>
           <ul className="plain">
             {ended.map((p) => (
               <li key={p.id}>#{p.id} {p.nickname ?? ""} <code>{p.ip_address}</code> — {p.status.toLowerCase()}</li>
@@ -157,15 +269,32 @@ function Players({ players, run }: { players: AdminPlayer[]; run: Run }) {
 }
 
 function Rooms({ rooms, games, run }: { rooms: AdminRoom[]; games: GameInfo[]; run: Run }) {
+  const [tab, setTab] = useState<"active" | "finished">("active");
+  const active = rooms.filter((r) => r.status !== "COMPLETED" && r.status !== "CANCELLED");
+  const done = rooms.filter((r) => r.status === "COMPLETED" || r.status === "CANCELLED")
+    .sort((a, b) => b.id - a.id);
+  const shown = tab === "active" ? active : done;
   return (
     <section className="panel">
-      <h2>Rooms</h2>
-      <CreateRoom games={games} run={run} />
-      {rooms.length === 0 ? (
-        <p className="muted">No rooms.</p>
+      <div className="panel-head">
+        <h2>Rooms</h2>
+        <Tabs label="Rooms" value={tab} onChange={setTab} tabs={[
+          { key: "active", label: "Active", count: active.length },
+          { key: "finished", label: "Finished", count: done.length },
+        ]} />
+      </div>
+      {tab === "active" && <CreateRoom games={games} run={run} />}
+      {shown.length === 0 ? (
+        <div className="empty">
+          <span className="empty-icon"><Icon name="gamepad" size={24} /></span>
+          <strong>{tab === "active" ? "No active rooms" : "No finished rooms"}</strong>
+          <span>{tab === "active"
+            ? "Create one above. Guests can also propose rooms for you to approve."
+            : "Rooms that finished in the last 12 hours appear here. Full results are under Recent matches."}</span>
+        </div>
       ) : (
-        <div className="admin-rooms">
-          {rooms.map((r) => <RoomCard key={r.id} room={r} run={run} />)}
+        <div key={tab} className="admin-rooms stagger tab-panel">
+          {shown.map((r, i) => <RoomCard key={r.id} room={r} run={run} index={i} />)}
         </div>
       )}
     </section>
@@ -176,99 +305,134 @@ function CreateRoom({ games, run }: { games: GameInfo[]; run: Run }) {
   const [gameType, setGameType] = useState("");
   const [name, setName] = useState("");
   const [maxPlayers, setMaxPlayers] = useState<number | null>(null);
+  const [options, setOptions] = useState<RoomOptions | null>(null);
   const game = games.find((g) => g.game_type === gameType) ?? games[0];
   if (!game) return <p className="muted">No games are available.</p>;
   const limit = maxPlayers !== null && maxPlayers >= game.min_players && maxPlayers <= game.max_players
     ? maxPlayers : game.max_players;
+  const chosen = options ?? defaultOptions(game.game_type);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    await run("POST", "/api/admin/rooms", { game_type: game.game_type, name: name || game.name, max_players: limit });
-    setName("");
+    const ok = await run("POST", "/api/admin/rooms", {
+      game_type: game.game_type, name: name || game.name, max_players: limit,
+      options: cleanOptions(chosen),
+    });
+    if (ok) setName("");
   };
 
   return (
-    <form className="row create-room" onSubmit={submit}>
-      <select value={game.game_type} onChange={(e) => { setGameType(e.target.value); setMaxPlayers(null); }}>
-        {games.map((g) => <option key={g.game_type} value={g.game_type}>{g.name}</option>)}
-      </select>
-      <input placeholder="Room name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
-      <label className="row">
-        Player limit
-        <select value={limit} onChange={(e) => setMaxPlayers(Number(e.target.value))}>
-          {Array.from({ length: game.max_players - game.min_players + 1 }, (_, i) => game.min_players + i)
-            .map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-      </label>
-      <button>Create room</button>
+    <form className="create-room" onSubmit={submit}>
+      <div className="create-room-row">
+        <GameIcon gameType={game.game_type} />
+        <label className="field">
+          <span>Game</span>
+          <select value={game.game_type} onChange={(e) => { setGameType(e.target.value); setMaxPlayers(null); setOptions(null); }}>
+            {games.map((g) => <option key={g.game_type} value={g.game_type}>{g.name}</option>)}
+          </select>
+        </label>
+        <label className="field grow">
+          <span>Room name</span>
+          <input placeholder="Room name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Player limit</span>
+          <select value={limit} onChange={(e) => setMaxPlayers(Number(e.target.value))}>
+            {Array.from({ length: game.max_players - game.min_players + 1 }, (_, i) => game.min_players + i)
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        <button className="create-btn"><Icon name="plus" size={16} />Create room</button>
+      </div>
+      <div className="create-room-options">
+        <GameOptionsPicker gameType={game.game_type} value={chosen} onChange={setOptions} />
+      </div>
     </form>
   );
 }
 
-function RoomCard({ room, run }: { room: AdminRoom; run: Run }) {
+function RoomCard({ room, run, index }: { room: AdminRoom; run: Run; index: number }) {
+  const { confirm } = useFeedback();
   const base = `/api/admin/rooms/${room.id}`;
   const preStart = ["CREATED", "WAITING_FOR_PLAYERS", "READY_TO_START"].includes(room.status);
+  const finished = room.status === "COMPLETED" || room.status === "CANCELLED";
   const offline = room.members.filter((m) => !m.online);
   return (
-    <article className={`room-card status-${room.status.toLowerCase()}`}>
+    <article className={`room-card status-${room.status.toLowerCase()}${finished ? " finished" : ""}`} style={{ ["--i" as string]: index }}>
       <header className="room-card-head">
-        <div>
-          <h3>{room.name}</h3>
-          <p className="muted">{room.game_name} · created by {room.creator}</p>
+        <div className="room-card-title">
+          <GameIcon gameType={room.game_type} />
+          <div>
+            <h3>{room.name}</h3>
+            <p className="muted">{room.game_name} · by {room.creator}</p>
+          </div>
         </div>
-        <span className="badge">{statusLabel(room.status)}</span>
       </header>
-      <p>
-        {room.members.length}/{room.max_players} players (min {room.min_players})
-        {room.is_locked && preStart && " · locked"}
-      </p>
-      <ul className="members">
-        {room.members.map((m) => (
-          <li key={m.session_id}>
-            <span className={`dot ${m.online ? "dot-on" : "dot-off"}`} />
-            {m.nickname}{m.is_host && <span className="badge">host</span>}
-            {preStart && <span className="muted"> · {m.is_ready ? "ready" : "not ready"}</span>}
-          </li>
-        ))}
-      </ul>
+      <div className="room-meta">
+        <span className={`pill ${statusTone(room.status)}${room.status === "IN_PROGRESS" ? " live" : ""}`}>{statusLabel(room.status)}</span>
+        {room.options_label && <span className="pill"><Icon name="clock" size={13} />{room.options_label}</span>}
+        {room.is_locked && preStart && <span className="pill"><Icon name="lock" size={13} />locked</span>}
+        <span className="pill"><Icon name="users" size={13} />{room.members.length}/{room.max_players} (min {room.min_players})</span>
+      </div>
+      {room.members.length > 0 && (
+        <ul className="members">
+          {room.members.map((m) => (
+            <li key={m.session_id} className={room.awaiting.includes(m.nickname) ? "turn" : ""}>
+              <Avatar name={m.nickname} size={24} online={m.online} />
+              {m.nickname}{m.is_host && <span className="badge">host</span>}
+              {preStart && <span className={m.is_ready ? "ok-text" : "muted"}>{m.is_ready ? "✓" : "·"}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
       {room.status === "IN_PROGRESS" && room.awaiting.length > 0 && (
-        <p className="muted">Waiting on: {room.awaiting.join(", ")}</p>
+        <p className="muted small-print">Waiting on: {room.awaiting.join(", ")}</p>
       )}
       {room.result && (
-        <p>
-          <strong>{room.result.outcome === "WIN" ? `Winner: ${room.result.winners.join(", ")}` : room.result.outcome.toLowerCase()}</strong>
+        <p className="small-print">
+          <strong>{room.result.outcome === "WIN" ? `🏆 Winner: ${room.result.winners.join(", ")}` : room.result.outcome.toLowerCase()}</strong>
           {room.result.reason && <span className="muted"> — {room.result.reason}</span>}
         </p>
       )}
       {room.status === "READY_TO_START" && offline.length > 0 && (
-        <p className="warn">Offline: {offline.map((m) => m.nickname).join(", ")}</p>
+        <p className="warn small-print">Offline: {offline.map((m) => m.nickname).join(", ")}</p>
       )}
-      <div className="row wrap">
-        {room.status === "CREATED" && <button onClick={() => run("POST", `${base}/approve`)}>Approve room</button>}
+      <div className="row wrap card-actions">
+        {room.status === "CREATED" && <button className="small" onClick={() => run("POST", `${base}/approve`)}><Icon name="check" size={14} />Approve room</button>}
         {preStart && room.status !== "CREATED" && (
           <button
+            className={`small${room.status === "READY_TO_START" ? " success glow-ready" : ""}`}
             disabled={room.status !== "READY_TO_START"}
             title={room.status !== "READY_TO_START" ? "All required players must join and be ready" : ""}
-            onClick={() => {
-              if (window.confirm(`Start ${room.name} with ${room.members.map((m) => m.nickname).join(", ")}?`))
-                void run("POST", `${base}/start`);
+            onClick={async () => {
+              const ok = await confirm({
+                title: `Start ${room.name}?`,
+                body: <>Players: <strong>{room.members.map((m) => m.nickname).join(", ")}</strong>{room.options_label ? <> · {room.options_label}</> : null}</>,
+                confirmLabel: "Start now",
+              });
+              if (ok) void run("POST", `${base}/start`);
             }}
           >
-            Start game
+            <Icon name="play" size={14} />Start game
           </button>
         )}
         {preStart && (room.is_locked
-          ? <button className="secondary" onClick={() => run("POST", `${base}/unlock`)}>Unlock</button>
-          : <button className="secondary" onClick={() => run("POST", `${base}/lock`)}>Lock</button>)}
+          ? <button className="secondary small" onClick={() => run("POST", `${base}/unlock`)}><Icon name="unlock" size={14} />Unlock</button>
+          : <button className="secondary small" onClick={() => run("POST", `${base}/lock`)}><Icon name="lock" size={14} />Lock</button>)}
         {room.status === "IN_PROGRESS" && (
-          <button className="secondary" onClick={() => {
-            if (window.confirm("End this game now? It will be recorded as ended by the host.")) void run("POST", `${base}/finish`);
-          }}>Finish game</button>
+          <button className="secondary small" onClick={async () => {
+            const ok = await confirm({
+              title: "End this game now?", body: "It will be recorded as ended by the host, with no winner.",
+              confirmLabel: "End game", danger: true,
+            });
+            if (ok) void run("POST", `${base}/finish`);
+          }}><Icon name="flag" size={14} />Finish game</button>
         )}
-        {preStart && <button className="secondary" onClick={() => run("POST", `${base}/cancel`)}>Cancel</button>}
-        <button className="danger" onClick={() => {
-          if (window.confirm(`Remove room ${room.name}?`)) void run("DELETE", base);
-        }}>Remove</button>
+        {preStart && <button className="secondary small" onClick={() => run("POST", `${base}/cancel`)}>Cancel</button>}
+        <button className="danger small icon-btn" aria-label="Remove" title="Remove room" onClick={async () => {
+          const ok = await confirm({ title: `Remove ${room.name}?`, body: finished ? "The match history is kept." : "Anyone in it returns to the lobby.", confirmLabel: "Remove room", danger: true });
+          if (ok) void run("DELETE", base);
+        }}><Icon name="trash" size={14} /></button>
       </div>
     </article>
   );
@@ -278,42 +442,48 @@ function HostPlayer({ run }: { run: Run }) {
   const [nickname, setNickname] = useState("Host");
   return (
     <section className="panel">
-      <h2>Play as the host</h2>
-      <p className="muted">
+      <div className="panel-head"><h2><Icon name="gamepad" />Play as the host</h2></div>
+      <p className="muted small-print">
         Opens the player view in a new tab with your own player identity (separate from this
         admin login). Join rooms there like any guest; this dashboard stays available here.
       </p>
-      <form className="row" onSubmit={async (e) => {
+      <form className="row" style={{ marginTop: 12 }} onSubmit={async (e) => {
         e.preventDefault();
-        await run("POST", "/api/admin/host-player", { nickname });
-        window.open("/", "_blank");
+        if (await run("POST", "/api/admin/host-player", { nickname })) window.open("/", "_blank");
       }}>
-        <input maxLength={20} value={nickname} onChange={(e) => setNickname(e.target.value)} />
-        <button>Open player view</button>
+        <input maxLength={20} value={nickname} onChange={(e) => setNickname(e.target.value)} style={{ flex: 1 }} />
+        <button><Icon name="external" size={14} />Open player view</button>
       </form>
     </section>
   );
 }
 
 function History({ state }: { state: AdminState }) {
-  if (state.history.length === 0) return null;
+  const [tab, setTab] = useState("all");
+  const [open, setOpen] = useState<number | null>(null);
+  const types = state.games.filter((g) => state.history.some((h) => h.game_type === g.game_type));
+  const shown = tab === "all" ? state.history : state.history.filter((h) => h.game_type === tab);
   return (
     <section className="panel">
-      <h2>Recent matches</h2>
-      <table>
-        <thead><tr><th>Room</th><th>Game</th><th>Players</th><th>Result</th><th>Finished</th></tr></thead>
-        <tbody>
-          {state.history.map((h) => (
-            <tr key={h.id}>
-              <td>{h.room_name}</td>
-              <td>{state.games.find((g) => g.game_type === h.game_type)?.name ?? h.game_type}</td>
-              <td>{h.participants.join(", ")}</td>
-              <td>{h.outcome === "WIN" ? `Won by ${h.winners.join(", ")}` : h.outcome.toLowerCase()}{h.reason ? ` (${h.reason})` : ""}</td>
-              <td>{new Date(h.finished_at).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="panel-head">
+        <h2><Icon name="history" />Recent matches</h2>
+      </div>
+      {state.history.length === 0 ? (
+        <p className="muted small-print">Finished matches appear here.</p>
+      ) : (
+        <>
+          <div style={{ marginBottom: 12 }}>
+            <Tabs label="Matches by game" value={tab} onChange={setTab} tabs={[
+              { key: "all", label: "All", count: state.history.length },
+              ...types.map((g) => ({ key: g.game_type, label: g.name, count: state.history.filter((h) => h.game_type === g.game_type).length })),
+            ]} />
+          </div>
+          <ul key={tab} className="match-list tab-panel">
+            {shown.map((h, i) => <li key={h.id}><MatchRow match={h} index={i} onOpen={() => setOpen(h.id)} /></li>)}
+          </ul>
+        </>
+      )}
+      {open !== null && <MatchViewer url={`/api/admin/history/${open}`} onClose={() => setOpen(null)} />}
     </section>
   );
 }

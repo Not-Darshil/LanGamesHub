@@ -10,7 +10,9 @@ remote font, external login, or Node.js is needed on the host or the guest PCs.
 1) Snakes and Ladders
 1) Ludo
 1) Battleship
-1) Chess
+1) Chess (optional clocks: bullet to classical)
+1) Business (property trading with Indian cities; optional time limit)
+1) Typing Race (2–8 players, server-timed)
 
 Rules for each game are documented in [docs/games/](docs/games/). The server enforces
 every rule; browsers only send intents ("play card 17") and never game state.
@@ -85,6 +87,8 @@ The database URL and passwords never reach the browser.
 * After a restart, browsers reconnect automatically (with back-off) using their session
   cookies and continue exactly where they were: same hands, boards and turn. Nothing is
   re-dealt or re-rolled.
+* Chess clocks use the server's wall clock, so a running clock keeps running while the
+  server is down; a player can lose on time during a long outage.
 * Lost on restart (in memory only): live connections (until they reconnect), rate-limit
   counters, and pending disconnect-grace timers. Because start requires every member to
   be connected, a ready room cannot be started until its members have reconnected.

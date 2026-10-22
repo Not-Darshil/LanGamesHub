@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
@@ -19,9 +20,9 @@ from app.api.deps import (
 )
 from app.models import AdminSession, AdminUser, ScreenVisibility
 from app.realtime.hub import CLOSE_FORBIDDEN, CLOSE_KICKED
-from app.services import admin_auth, players, rooms
+from app.services import admin_auth, players, rooms, settings_store
 from app.services.errors import ServiceError
-from app.services.views import build_admin_view, session_view
+from app.services.views import build_admin_view, match_detail, session_view
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -44,10 +45,15 @@ class CreateRoomRequest(BaseModel):
     game_type: str = Field(min_length=1, max_length=32)
     name: str = Field(min_length=1, max_length=80)
     max_players: int | None = Field(default=None, ge=1, le=16)
+    options: dict[str, Any] | None = None
 
 
 class ScreenRequest(BaseModel):
     visibility: ScreenVisibility
+
+
+class MuteRequest(BaseModel):
+    muted: bool
 
 
 class InvalidCredentials(ServiceError):
@@ -149,6 +155,32 @@ async def set_screen(session_id: int, body: ScreenRequest, request: Request,
     return {"visibility": body.visibility.value, "changed": changed}
 
 
+@router.put("/sound")
+async def mute_everyone(body: MuteRequest, request: Request, _: int = Depends(require_admin)) -> dict:
+    """Mute (or unmute) sound effects for every guest, including ones who join later."""
+    ctx = get_ctx(request)
+    await ctx.run(lambda db: settings_store.put(db, settings_store.MUTE_ALL_SOUND, body.muted))
+    await ctx.hub.flush()
+    return {"muted": body.muted}
+
+
+@router.put("/players/{session_id}/sound")
+async def mute_player(session_id: int, body: MuteRequest, request: Request,
+                      _: int = Depends(require_admin)) -> dict:
+    """Mute (or unmute) one guest's sound effects. Idempotent."""
+    ctx = get_ctx(request)
+    changed = await ctx.run(lambda db: players.set_sound_muted(db, session_id, body.muted))
+    await ctx.hub.flush()
+    return {"muted": body.muted, "changed": changed}
+
+
+@router.get("/history/{match_id}")
+async def history_detail(match_id: int, request: Request, _: int = Depends(require_admin)) -> dict:
+    """A finished match and its final position, as a spectator sees it."""
+    ctx = get_ctx(request)
+    return await ctx.run(lambda db: match_detail(db, match_id, None))
+
+
 @router.put("/players/{session_id}/nickname")
 async def rename(session_id: int, body: NicknameRequest, request: Request,
                  _: int = Depends(require_admin)) -> dict:
@@ -194,7 +226,8 @@ async def create_room(body: CreateRoomRequest, request: Request,
     def create(db: Session) -> dict:
         room = rooms.create_room(db, game_type=body.game_type, name=body.name,
                                  max_players=body.max_players, creator=None,
-                                 admin_label=_admin_username(db, admin_session_id))
+                                 admin_label=_admin_username(db, admin_session_id),
+                                 options=body.options)
         return {"id": room.id, "status": room.status.value}
 
     result = await ctx.run(create)

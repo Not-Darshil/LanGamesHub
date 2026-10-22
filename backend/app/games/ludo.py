@@ -11,11 +11,14 @@ from app.games.base import (
     GameError,
     GameInfo,
     Outcome,
+    Placing,
     State,
     log,
+    rank,
     require_int,
     who,
 )
+
 
 TRACK = 52
 LAST_TRACK = 50   # last main-track progress before the home column
@@ -176,6 +179,15 @@ class LudoEngine(GameEngine):
         if state["winner"] is None:
             return None
         return Outcome(winners=[state["winner"]], reason=state["win_reason"])
+
+    def standings(self, state: State) -> list[Placing]:
+        """Winner first, then by tokens home, then by total distance travelled."""
+        def key(p: str) -> tuple[bool, int, int]:
+            tokens = state["tokens"][p]
+            return (p == state["winner"], sum(t == HOME for t in tokens),
+                    sum(max(t, 0) for t in tokens))
+        return rank([(p, key(p), "Winner" if p == state["winner"]
+                      else f"{key(p)[1]}/{TOKENS} home") for p in state["players"]])
 
     def view(self, state: State, player: str | None) -> dict[str, Any]:
         current = state["players"][state["current"]] if state["players"] else None

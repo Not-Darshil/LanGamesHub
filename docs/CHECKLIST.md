@@ -48,7 +48,33 @@ Each game has an engine with rule and randomized/fuzz tests, an API integration 
 - [~] Windows `.bat` scripts (install, migrate, start, diagnose, backup, restore, passwords): written and reviewed, **not yet run on Windows**. Their Python commands are the ones exercised in the rehearsal.
 - [ ] Run the bundle on the real isolated Windows host (see docs/INSTALL-WINDOWS.md)
 
-## Test results (latest run, 2026-10-22)
+## Phase 7: Premium UI and chess clocks
+- [x] Dark design system (tokens, motion, reduced-motion support), system fonts only, no new dependencies
+- [x] Shared UI: toasts, styled confirm dialogs, avatars, 3D dice, confetti, synthesized sounds with mute, turn alerts
+- [x] Redesigned access flow, lobby (room cards, game tiles, propose dialog), waiting room, host dashboard
+- [x] All five games redesigned with animations (chess: drag and drop, move animation, captured pieces, board themes)
+- [x] Room options (migration 0005) and server-side chess clocks: 1+0, 3+2, 5+0, 10+0, 15+10, 30+0 or none; timeout and timeout-vs-insufficient-material; periodic flag check
+- [ ] Re-run the offline bundle rehearsal with this version
+
+## Phase 8: Host controls, themes, standings and history
+- [x] Light and dark themes (follows the system until chosen; remembered per browser)
+- [x] Host sound controls: mute everyone or one guest; guests report whether their sound is on
+- [x] Host dashboard tabs: active vs finished rooms, recent matches by game; matches open their end screen
+- [x] Final standings (#1, #2, #3…) for every match, ranked by progress; leavers last (migration 0006)
+- [x] Players' own match history with placings and a read-only final position for each match
+
+## Phase 9: New games
+- [x] Business (2–6): 36-square board, buying, rent, even building, mortgages, jail, cards, debt and bankruptcy, trades, optional time limit (richest wins), net-worth standings
+- [x] Typing Race (2–8): server-timed countdown and race, server-side prefix checking and WPM, anti-paste speed limit, finish-order standings
+- [x] Room options picker per game (chess time control, passage length, game length) in host and guest forms
+
+## Test results (latest run, 2026-10-23)
+- Backend: **642 passed, 4 skipped** (adds Business and Typing Race engines and API tests).
+- Browser E2E: `node e2e/run.mjs` → **80/80 checks**: all seven games, a timed chess game, a
+  3-player game with standings, sound and theme controls, and every match's end screen
+  for players and the host; zero requests to external hosts.
+
+## Test results (2026-10-22)
 - Backend: `backend/.venv/bin/python -m pytest` → **518 passed, 4 skipped** (the skips are
   3–4 player contract cases for the two-player games), stable over 3 consecutive runs.
 - Browser E2E: `node e2e/run.mjs` → **42/42 checks**, all five games, zero requests to

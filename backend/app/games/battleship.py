@@ -11,11 +11,14 @@ from app.games.base import (
     GameError,
     GameInfo,
     Outcome,
+    Placing,
     State,
     log,
+    rank,
     require_int,
     who,
 )
+
 
 SIZE = 10
 FLEET = {"carrier": 5, "battleship": 4, "cruiser": 3, "submarine": 3, "destroyer": 2}
@@ -171,6 +174,17 @@ class BattleshipEngine(GameEngine):
         if state["winner"] is None:
             return None
         return Outcome(winners=[state["winner"]], reason=state["win_reason"])
+
+    def standings(self, state: State) -> list[Placing]:
+        """Winner first, then by ships still afloat."""
+        def afloat(p: str) -> int:
+            fleet = state["fleets"].get(p) or []
+            sunk = sum(s["result"] == "sunk" for q in state["players"] if q != p
+                       for s in state["shots"][q])
+            return len(fleet) - sunk
+        return rank([(p, (p == state["winner"], afloat(p)), "Winner" if p == state["winner"]
+                      else f"{afloat(p)} ship{'' if afloat(p) == 1 else 's'} afloat")
+                     for p in state["players"]])
 
     def view(self, state: State, player: str | None) -> dict[str, Any]:
         """Strictly filtered: the opponent's fleet layout never leaves the server."""

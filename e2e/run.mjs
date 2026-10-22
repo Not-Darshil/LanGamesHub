@@ -80,6 +80,14 @@ async function newPage(browser) {
   return page;
 }
 
+/** Click the confirm button of the app's styled confirmation dialog. */
+async function confirmDialog(page) {
+  const dialog = page.getByRole("dialog");
+  await dialog.waitFor();
+  await dialog.locator(".modal-actions button").last().click();
+  await dialog.waitFor({ state: "detached" });
+}
+
 async function guestJoin(browser, admin, nickname) {
   const page = await newPage(browser);
   await page.goto(BASE);
@@ -132,9 +140,11 @@ async function coreFlow(browser, admin, players) {
   check("restored guest sees lobby again", true);
 }
 
-async function playGame(admin, players, gameType, bot) {
-  const roomName = `E2E ${gameType}`;
+async function playGame(admin, players, key, bot) {
+  const gameType = bot.gameType ?? key;
+  const roomName = `E2E ${key}`;
   await admin.locator(".create-room select").first().selectOption(gameType);
+  if (bot.setup) await bot.setup(admin);
   await admin.getByPlaceholder("Room name").fill(roomName);
   await admin.getByRole("button", { name: "Create room" }).click();
   for (const p of players) {
@@ -144,27 +154,102 @@ async function playGame(admin, players, gameType, bot) {
   }
   const adminCard = admin.locator(".room-card", { hasText: roomName });
   await adminCard.getByText("ready — waiting for host to start").waitFor();
-  check(`${gameType}: room waits for explicit host start`,
+  await players[0].screenshot({ path: join(SHOTS, `${key}-waiting.png`), fullPage: true });
+  check(`${key}: room waits for explicit host start`,
     await players[0].getByText("Everyone is ready. The host will start the game.").isVisible());
   await adminCard.getByRole("button", { name: "Start game" }).click();
+  await confirmDialog(admin);
   for (const p of players) await p.locator(`.game.${bot.css}`).waitFor();
-  check(`${gameType}: game started for all players`, true);
+  check(`${key}: game started for all players`, true);
 
   const summary = await bot.play(players, check);
   const html = await Promise.all(players.map((p) => p.content()));
-  check(`${gameType}: log uses nicknames, not ids`, html.every((h) => !h.includes("{{")));
+  check(`${key}: log uses nicknames, not ids`, html.every((h) => !h.includes("{{")));
   await Promise.all(players.map((p, i) =>
-    p.screenshot({ path: join(SHOTS, `${gameType}-${i}.png`), fullPage: true })));
-  console.log(`      ${gameType}: ${summary}`);
+    p.screenshot({ path: join(SHOTS, `${key}-${i}.png`), fullPage: true })));
+  console.log(`      ${key}: ${summary}`);
 
   // Clean up so players can join the next game.
   if (await adminCard.getByRole("button", { name: "Finish game" }).isVisible()) {
     await adminCard.getByRole("button", { name: "Finish game" }).click();
+    await confirmDialog(admin);
   }
+  if (bot.after) await bot.after(players, check);
   for (const p of players) {
     await p.getByRole("button", { name: "Back to lobby" }).click();
     await p.getByRole("heading", { name: "Lobby" }).waitFor();
   }
+}
+
+async function soundAndThemeFlow(admin, players) {
+  const [alice] = players;
+  const aliceRow = admin.locator("tr", { hasText: "Alice" });
+  await aliceRow.getByText("Sound on").waitFor();
+  check("host sees which guests have sound on", true);
+  // One guest only.
+  const [, bob] = players;
+  const bobRow = admin.locator("tr", { hasText: "Bob" });
+  await aliceRow.getByRole("button", { name: "Mute Alice" }).click();
+  await alice.getByLabel("Muted by the host").waitFor();
+  await aliceRow.getByText("Muted by host").waitFor();
+  check("host can mute one guest", await bob.getByRole("button", { name: "Mute sounds" }).isVisible()
+    && await bobRow.getByText("Sound on").isVisible());
+  await aliceRow.getByRole("button", { name: "Unmute Alice" }).click();
+  await alice.getByRole("button", { name: "Mute sounds" }).waitFor();
+  await aliceRow.getByText("Sound on").waitFor();
+  check("host can unmute one guest", true);
+  await admin.getByRole("button", { name: "Mute everyone" }).click();
+  await alice.getByLabel("Muted by the host").waitFor();
+  await aliceRow.getByText("Muted by host").waitFor();
+  check("host can mute every guest", true);
+  await admin.getByRole("button", { name: "Unmute everyone" }).click();
+  await alice.getByRole("button", { name: "Mute sounds" }).waitFor();
+  check("host can unmute every guest", true);
+
+  const theme = () => alice.evaluate(() => document.documentElement.dataset.theme);
+  const before = await theme();
+  await alice.locator(".theme-toggle").click();
+  const after = await theme();
+  check("theme toggle switches light/dark", before !== after && ["light", "dark"].includes(after), `${before} -> ${after}`);
+  await alice.locator(".theme-toggle").click();
+}
+
+async function historyFlow(admin, players, played) {
+  const [alice] = players;
+  await alice.getByRole("tab", { name: "My matches" }).click();
+  const rows = alice.locator(".match-row");
+  await rows.first().waitFor();
+  const count = await rows.count();
+  check("players see the matches they played", count === played, `${count} of ${played}`);
+  let replays = 0;
+  for (let i = 0; i < count; i++) {
+    await rows.nth(i).click();
+    const dialog = alice.getByRole("dialog");
+    await dialog.getByText("Final standings").waitFor();
+    if (await dialog.locator(".replay-inner .game").count()) replays++;
+    if (i === 0) await alice.screenshot({ path: join(SHOTS, "match-replay.png"), fullPage: true });
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await dialog.waitFor({ state: "detached" });
+  }
+  check("each match opens with standings and its final position", replays === count, `${replays}/${count}`);
+  await alice.screenshot({ path: join(SHOTS, "my-matches.png"), fullPage: true });
+  await alice.getByRole("tab", { name: "Play" }).click();
+
+  const adminRows = admin.locator(".match-row");
+  let adminReplays = 0;
+  for (let i = 0; i < Math.min(played, await adminRows.count()); i++) {
+    await adminRows.nth(i).click();
+    const dialog = admin.getByRole("dialog");
+    await dialog.getByText("Where it ended").waitFor();
+    if (await dialog.locator(".replay-inner .game").count()) adminReplays++;
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await dialog.waitFor({ state: "detached" });
+  }
+  check("host can open every match's final position", adminReplays === played, `${adminReplays}/${played}`);
+  await admin.getByRole("tab", { name: /Finished/ }).click();
+  const finished = await admin.locator(".admin-rooms .room-card").count();
+  check("finished rooms are on their own tab", finished === played, `${finished}`);
+  await admin.getByRole("tab", { name: /Active/ }).click();
 }
 
 async function main() {
@@ -185,11 +270,20 @@ async function main() {
     const bob = await guestJoin(browser, admin, "Bob");
     check("guests approved and in lobby", true);
     await coreFlow(browser, admin, [alice, bob]);
+    await soundAndThemeFlow(admin, [alice, bob]);
+    let carol = null;
+    await alice.screenshot({ path: join(SHOTS, "lobby.png"), fullPage: true });
     for (const game of games) {
       const bot = GAME_BOTS[game];
       if (!bot) throw new Error(`no bot for ${game}`);
-      await playGame(admin, [alice, bob], game, bot);
+      let seats = [alice, bob];
+      if (bot.players === 3) {
+        carol ??= await guestJoin(browser, admin, "Carol");
+        seats = [alice, bob, carol];
+      }
+      await playGame(admin, seats, game, bot);
     }
+    await historyFlow(admin, [alice, bob], games.length);
     await admin.screenshot({ path: join(SHOTS, "admin.png"), fullPage: true });
     check("no requests to any host other than the LanGamesHub server",
       externalRequests.length === 0, externalRequests.slice(0, 5).join(", "));

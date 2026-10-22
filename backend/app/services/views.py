@@ -28,6 +28,8 @@ from app.models import (
     SessionStatus,
 )
 from app.realtime.hub import CLOSE_FORBIDDEN, CLOSE_UNAUTHENTICATED, PlayerPush, Snapshot
+from app.services import settings_store
+from app.services.errors import NotFound
 from app.services.players import EXPIRED, effective_status
 from app.services.rooms import participant_names, player_key
 from app.timeutil import utcnow
@@ -40,13 +42,15 @@ LOBBY_STATUSES = (RoomStatus.WAITING_FOR_PLAYERS, RoomStatus.READY_TO_START,
                   RoomStatus.IN_PROGRESS)
 
 
-def session_view(session: PlayerSession) -> dict[str, Any]:
+def session_view(session: PlayerSession, mute_all: bool = False) -> dict[str, Any]:
     return {
         "id": session.id,
         "status": effective_status(session),
         "nickname": session.nickname,
         "is_host": session.is_host,
         "screen": session.screen_visibility.value,
+        # The host silenced this guest's sound effects (individually or everyone).
+        "sound_muted": mute_all or session.sound_muted_by_host,
     }
 
 
@@ -86,6 +90,8 @@ def room_summary(room: Room) -> dict[str, Any]:
         "max_players": room.max_players,
         "is_locked": room.is_locked,
         "creator": room.creator_label,
+        "options": room.options or {},
+        "options_label": engine.options_label(room.options or {}) if engine else None,
     }
 
 
@@ -96,6 +102,7 @@ class _Loaded:
                  include_admin: bool) -> None:
         now = utcnow()
         self.online = online
+        self.mute_all = bool(settings_store.get(db, settings_store.MUTE_ALL_SOUND, False))
         member_room_ids = select(RoomMember.room_id).where(RoomMember.session_id.in_(session_ids))
         room_filter = or_(Room.status.in_(ACTIVE_STATUSES), Room.id.in_(member_room_ids))
         if include_admin:
@@ -140,7 +147,8 @@ class _Loaded:
         result = self.results.get(room.id)
         if result is None:
             return None
-        return {"outcome": result.outcome, "winners": result.winners, "reason": result.reason}
+        return {"outcome": result.outcome, "winners": result.winners, "reason": result.reason,
+                "standings": result.standings or []}
 
     def awaiting(self, room: Room) -> list[str]:
         engine = get_engine(room.game_type)
@@ -153,7 +161,7 @@ class _Loaded:
 def player_view(loaded: _Loaded, session: PlayerSession) -> dict[str, Any]:
     if is_hidden(session):
         return hidden_view(session)
-    view: dict[str, Any] = {"session": session_view(session)}
+    view: dict[str, Any] = {"session": session_view(session, loaded.mute_all)}
     if effective_status(session) != SessionStatus.APPROVED:
         return view  # pending guests learn nothing beyond their own status
 
@@ -248,7 +256,9 @@ def _admin_view(db: Session, loaded: _Loaded) -> dict[str, Any]:
     for s in rows:
         room = loaded.room_of.get(s.id)
         entry = {
-            **session_view(s),
+            **session_view(s, loaded.mute_all),
+            "sound_enabled": s.sound_enabled,
+            "sound_muted_by_host": s.sound_muted_by_host,
             "ip_address": s.ip_address,
             "user_agent": s.user_agent,
             "created_at": s.created_at.isoformat(),
@@ -274,12 +284,71 @@ def _admin_view(db: Session, loaded: _Loaded) -> dict[str, Any]:
         }
         for r in loaded.rooms.values()
     ]
-    history = [
-        {"id": m.id, "room_name": m.room_name, "game_type": m.game_type, "outcome": m.outcome,
-         "winners": m.winners, "reason": m.reason,
-         "participants": [p["nickname"] for p in m.participants],
-         "finished_at": m.finished_at.isoformat()}
-        for m in db.scalars(select(MatchResult).order_by(MatchResult.id.desc()).limit(20))
-    ]
+    history = [match_summary(m) for m in db.scalars(
+        select(MatchResult).order_by(MatchResult.id.desc()).limit(60))]
     return {"pending": pending, "players": player_rows, "rooms": rooms,
-            "games": games_view(), "history": history}
+            "games": games_view(), "history": history, "sound_muted_all": loaded.mute_all}
+
+
+# -- match history and replays ---------------------------------------------------------
+
+PLAYER_HISTORY_LIMIT = 50
+
+
+def match_summary(m: MatchResult, session_id: int | None = None) -> dict[str, Any]:
+    engine = get_engine(m.game_type)
+    summary: dict[str, Any] = {
+        "id": m.id, "room_name": m.room_name, "game_type": m.game_type,
+        "game_name": engine.info.name if engine else m.game_type,
+        "outcome": m.outcome, "winners": m.winners, "reason": m.reason,
+        "participants": [p["nickname"] for p in m.participants],
+        "standings": m.standings or [],
+        "has_replay": m.final_state is not None and engine is not None,
+        "started_at": m.started_at.isoformat() if m.started_at else None,
+        "finished_at": m.finished_at.isoformat(),
+    }
+    if session_id is not None:
+        me = player_key(session_id)
+        summary["my_place"] = next((row["place"] for row in summary["standings"]
+                                    if row["id"] == me), None)
+    return summary
+
+
+def _participated(m: MatchResult, session_id: int) -> bool:
+    return any(p.get("session_id") == session_id for p in m.participants)
+
+
+def player_history(db: Session, session_id: int) -> list[dict[str, Any]]:
+    """Matches this player took part in, newest first. Hidden guests get nothing."""
+    session = db.get(PlayerSession, session_id)
+    if session is None or is_hidden(session):
+        return []
+    rows = db.scalars(
+        select(MatchResult)
+        .where(MatchResult.participants.contains([{"session_id": session_id}]))
+        .order_by(MatchResult.id.desc()).limit(PLAYER_HISTORY_LIMIT))
+    return [match_summary(m, session_id) for m in rows]
+
+
+def match_detail(db: Session, match_id: int, session_id: int | None) -> dict[str, Any]:
+    """A finished match with its final position, as the given participant saw it
+    (``session_id=None`` = the host's spectator view, with no hidden information)."""
+    m = db.get(MatchResult, match_id)
+    if session_id is not None:
+        session = db.get(PlayerSession, session_id)
+        if m is None or session is None or is_hidden(session) or not _participated(m, session_id):
+            raise NotFound("Match not found")
+    elif m is None:
+        raise NotFound("Match not found")
+    detail = match_summary(m, session_id)
+    engine = get_engine(m.game_type)
+    detail["game"] = None
+    if engine is not None and m.final_state is not None:
+        viewer = player_key(session_id) if session_id is not None else None
+        detail["game"] = {
+            "version": 0,
+            "names": {p["id"]: p["nickname"] for p in m.participants},
+            "you": viewer or "",
+            **engine.view(m.final_state, viewer),
+        }
+    return detail

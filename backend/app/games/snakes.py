@@ -5,7 +5,18 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from app.games.base import Action, GameEngine, GameError, GameInfo, Outcome, State, log, who
+from app.games.base import (
+    Action,
+    GameEngine,
+    GameError,
+    GameInfo,
+    Outcome,
+    Placing,
+    State,
+    log,
+    rank,
+    who,
+)
 
 FINISH = 100
 LADDERS = {1: 38, 4: 14, 9: 31, 21: 42, 28: 84, 36: 44, 51: 67, 71: 91, 80: 100}
@@ -81,6 +92,13 @@ class SnakesEngine(GameEngine):
         if state["winner"] is None:
             return None
         return Outcome(winners=[state["winner"]], reason=state["win_reason"])
+
+    def standings(self, state: State) -> list[Placing]:
+        """Winner first, then by square reached."""
+        return rank([
+            (p, (p == state["winner"], state["positions"][p]),
+             "Winner" if p == state["winner"] else f"Square {state['positions'][p]}")
+            for p in state["players"]])
 
     def view(self, state: State, player: str | None) -> dict[str, Any]:
         return {

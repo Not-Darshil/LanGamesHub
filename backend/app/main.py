@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -28,6 +30,8 @@ from app.services.views import build_snapshot
 logger = logging.getLogger("app")
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+# How often running game clocks are checked for a fallen flag.
+CLOCK_CHECK_SECONDS = 0.5
 MAX_BODY_BYTES = 64 * 1024
 # Everything is served from this host: no CDNs, remote fonts, or third-party scripts.
 CONTENT_SECURITY_POLICY = (
@@ -47,13 +51,33 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                            "the dashboard cannot be used until one is created",
                            ctx.settings.admin_username)
     ctx.hub.start()
+    clocks = asyncio.create_task(_clock_loop(ctx), name="game-clocks")
     for url in guest_urls(ctx.settings.bind_host, ctx.settings.bind_port):
         logger.info("Guests open %s  ·  host dashboard %s/admin", url, url)
     try:
         yield
     finally:
+        clocks.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await clocks
         await ctx.hub.stop()
         ctx.engine.dispose()
+
+
+async def _clock_loop(ctx: AppContext) -> None:
+    """End timed games (chess clocks) whose flag fell while nobody was acting."""
+    failing = False
+    while True:
+        await asyncio.sleep(CLOCK_CHECK_SECONDS)
+        try:
+            if await ctx.run(room_service.expire_clocks):
+                ctx.hub.notify()
+            failing = False
+        except Exception:
+            if not failing:  # log once per outage, not twice a second
+                logger.exception("Checking game clocks failed")
+            failing = True
+            await asyncio.sleep(5)
 
 
 def _check_database_on_startup(ctx: AppContext) -> bool:

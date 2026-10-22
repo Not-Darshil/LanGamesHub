@@ -221,7 +221,10 @@ def test_actions_are_validated_by_engine(admin: Browser,
                   json={"action": {"type": "claim"}}).json()["status"] == "COMPLETED"
     state = b.get("/api/state").json()
     assert state["game"]["version"] == version + 1
-    assert state["room"]["result"] == {"outcome": "WIN", "winners": ["A"], "reason": "claimed"}
+    assert state["room"]["result"] == {
+        "outcome": "WIN", "winners": ["A"], "reason": "claimed",
+        "standings": [{"id": str(a.session_id), "nickname": "A", "place": 1, "detail": "Winner"},
+                      {"id": str(b.session_id), "nickname": "B", "place": 2, "detail": ""}]}
     assert a.post(f"/api/rooms/{room_id}/actions",
                   json={"action": {"type": "pass"}}).status_code == 409
     history = admin.get("/api/admin/state").json()["history"]

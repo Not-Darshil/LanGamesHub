@@ -1,3 +1,6 @@
+import { business } from "./bots/business.mjs";
+import { typing } from "./bots/typing.mjs";
+
 // Per-game "bots" that play through the real UI by clicking like a person would.
 // Each returns a short summary; `check` records assertions.
 
@@ -36,6 +39,8 @@ async function finished(pages) {
 }
 
 export const GAME_BOTS = {
+  typing,
+  business,
   uno: {
     css: "uno",
     async play(pages, check) {
@@ -86,6 +91,31 @@ export const GAME_BOTS = {
       const statuses = await Promise.all(pages.map((p) => p.locator(".game-status").innerText()));
       check("snakes: both players see the same turn", new Set(statuses.map((t) => t.includes("won"))).size === 1);
       return `${rolls} rolls, ${tokens} tokens on board`;
+    },
+  },
+  snakes_3p: {
+    css: "snakes",
+    gameType: "snakes",
+    players: 3,
+    async play(pages) {
+      let rolls = 0;
+      for (; rolls < 12 && !(await finished(pages)); rolls++) {
+        const page = await whoseTurn(pages, '.game-status:text("Your turn")');
+        if (!page) break;
+        const before = await version(page);
+        await page.getByRole("button", { name: "Roll the die" }).click();
+        await waitForUpdate(page, before);
+      }
+      return `${rolls} rolls with 3 players`;
+    },
+    async after(pages, check) {
+      const counts = await Promise.all(pages.map(async (p) => {
+        await p.locator(".result .standings li").first().waitFor();
+        return p.locator(".result .standings li").count();
+      }));
+      const first = await pages[0].locator(".result .standings li").first().innerText();
+      check("3+ players: everyone sees the ranked #1/#2/#3 standings", counts.every((n) => n === 3) && first.includes("#1"),
+        `${counts} · ${first.replace(/\n/g, " ")}`);
     },
   },
   ludo: {
@@ -168,6 +198,32 @@ export const GAME_BOTS = {
       const san = await white.locator(".ch-moves").innerText();
       check("chess: SAN move list", san.includes("Qxf7#"), san.replace(/\n/g, " "));
       return "scholar's mate in 7 plies";
+    },
+  },
+  chess_clock: {
+    css: "chess",
+    gameType: "chess",
+    async setup(admin) {
+      await admin.getByRole("radio", { name: "1 min Bullet" }).click();
+    },
+    async play(pages, check) {
+      const [white, black] = pages;
+      const clocks = await Promise.all(pages.map((p) => p.locator(".ch-clock").count()));
+      check("chess clock: both clocks shown to both players", clocks.every((n) => n === 2), `${clocks}`);
+      check("chess clock: clocks wait for White's first move",
+        (await white.locator(".ch-clock.running").count()) === 0);
+      const before = await version(white);
+      await white.locator('.ch-square[aria-label="e2"]').click();
+      await white.locator('.ch-square[aria-label="e4"]').click();
+      await waitForUpdate(white, before);
+      const running = black.locator(".ch-clock.running .ch-clock-time");
+      await running.waitFor();
+      const seconds = (t) => t.split(":").reduce((acc, part) => acc * 60 + Number(part), 0);
+      const t1 = seconds(await running.innerText());
+      await sleep(1600);
+      const t2 = seconds(await running.innerText());
+      check("chess clock: Black's clock counts down after White moves", t1 <= 60 && t2 < t1, `${t1} -> ${t2}`);
+      return `clock ${t1}s -> ${t2}s`;
     },
   },
 };
